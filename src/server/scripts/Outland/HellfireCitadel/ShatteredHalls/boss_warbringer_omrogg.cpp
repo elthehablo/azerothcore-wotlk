@@ -195,7 +195,7 @@ public:
                         });
                     });
                 });
-            context.Repeat(90s, 120s);
+            context.Repeat(180s, 210s);
             });
         }
 
