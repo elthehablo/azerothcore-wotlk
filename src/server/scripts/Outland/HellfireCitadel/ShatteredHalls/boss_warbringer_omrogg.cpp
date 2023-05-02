@@ -117,16 +117,12 @@ public:
             _JustEngagedWith();
             scheduler.Schedule(500ms, GROUP_FULL_PHASE, [this](TaskContext context)
             {
-                LOG_ERROR("server", "Data {}", "big scheduler entered");
                 scheduler.Schedule(12100ms, 17300ms, GROUP_NON_BURNING_PHASE, [this](TaskContext context)
                 {
-                    LOG_ERROR("server", "Data {}", "entered non-burning phase");
-                    LOG_ERROR("server", "Data {}", std::to_string(scheduler.IsGroupScheduled(GROUP_NON_BURNING_PHASE)));
                     DoCastAOE(SPELL_THUNDERCLAP);
                     context.Repeat(17200ms, 24200ms);
                 }).Schedule(20s, 30s, GROUP_NON_BURNING_PHASE, [this](TaskContext context)
                 {
-                    LOG_ERROR("server", "Data {}", "beatdown cast");
                     DoCastSelf(SPELL_BEATDOWN, false);
                     me->SetUnitFlag(UNIT_FLAG_PACIFIED);
                     me->SetReactState(REACT_PASSIVE);
@@ -134,7 +130,6 @@ public:
                     {
                         if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                         {
-                            LOG_ERROR("server", "Data {}", "threat remove 1");
                             uint8 threatYell = urand(EVENT_THREAT_YELL_L_1, EVENT_THREAT_YELL_R_1);
                             if (Creature* head = threatYell == EVENT_THREAT_YELL_R_1 ? GetRightHead() : GetLeftHead())
                                 head->AI()->Talk(threatYell - 1);
@@ -164,7 +159,6 @@ public:
                                 {
                                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
                                     {
-                                        LOG_ERROR("server", "Data {}", "threat remove 2");
                                         uint8 threatYell = urand(EVENT_THREAT_YELL_L_1, EVENT_THREAT_YELL_R_1);
                                         if (Creature* head = threatYell == EVENT_THREAT_YELL_R_1 ? GetRightHead() : GetLeftHead())
                                             head->AI()->Talk(threatYell - 1);
@@ -175,27 +169,21 @@ public:
                                         me->SetReactState(REACT_AGGRESSIVE);
                                         me->RemoveUnitFlag(UNIT_FLAG_PACIFIED);
                                     }
-                                    LOG_ERROR("server", "Data {}", "entered burning phase");
                                 });
                             });
-                            LOG_ERROR("server", "Data {}", "start blast waves");
                             scheduler.Schedule(4850ms, 8500ms, GROUP_BURNING_PHASE, [this](TaskContext context)
                             {
                                 DoCastAOE(SPELL_BLAST_WAVE, false);
                                 context.Repeat(4850ms, 8500ms);
                             }).Schedule(45s, 60s, GROUP_BURNING_PHASE, [this](TaskContext context)
                             {
-                                LOG_ERROR("server", "Data {}", "should go back to p1 now");
                                 me->LoadEquipment(EQUIP_STANDARD);
                                 context.CancelGroup(GROUP_BURNING_PHASE);
                                 scheduler.RescheduleGroup(GROUP_NON_BURNING_PHASE, 5ms);
                                 context.RescheduleGroup(GROUP_NON_BURNING_PHASE, 5ms);
-                                context.RescheduleGroup(GROUP_FULL_PHASE, 50ms);
-                                LOG_ERROR("server", "Burning phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_BURNING_PHASE)));
-                                LOG_ERROR("server", "Non-burning phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_NON_BURNING_PHASE)));
                                 scheduler.Schedule(1s, [this](TaskContext context)
                                 {
-                                    LOG_ERROR("server", "Full phase scheduled again: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_FULL_PHASE)));
+                                    context.RescheduleGroup(GROUP_FULL_PHASE, 50ms);
                                 });
                             });
                         });
