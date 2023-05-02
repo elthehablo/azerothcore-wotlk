@@ -67,6 +67,7 @@ enum Phase
 {
     GROUP_NON_BURNING_PHASE           = 0,
     GROUP_BURNING_PHASE               = 1,
+    GROUP_FULL_PHASE                  = 2
 };
 
 
@@ -114,7 +115,7 @@ public:
             }
 
             _JustEngagedWith();
-            scheduler.Schedule(500ms, [this](TaskContext context)
+            scheduler.Schedule(500ms, GROUP_FULL_PHASE, [this](TaskContext context)
             {
                 LOG_ERROR("server", "Data {}", "big scheduler entered");
                 scheduler.Schedule(12100ms, 17300ms, GROUP_NON_BURNING_PHASE, [this](TaskContext context)
@@ -189,13 +190,18 @@ public:
                                 context.CancelGroup(GROUP_BURNING_PHASE);
                                 scheduler.RescheduleGroup(GROUP_NON_BURNING_PHASE, 5ms);
                                 context.RescheduleGroup(GROUP_NON_BURNING_PHASE, 5ms);
+                                context.RescheduleGroup(GROUP_FULL_PHASE, 50ms);
                                 LOG_ERROR("server", "Burning phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_BURNING_PHASE)));
                                 LOG_ERROR("server", "Non-burning phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_NON_BURNING_PHASE)));
+                                scheduler.Schedule(1s, [this](TaskContext context)
+                                {
+                                    LOG_ERROR("server", "Full phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_FULL_PHASE)));
+                                });
                             });
                         });
                     });
                 });
-            context.Repeat(180s, 210s);
+            context.Repeat(130s, 150s);
             });
         }
 
