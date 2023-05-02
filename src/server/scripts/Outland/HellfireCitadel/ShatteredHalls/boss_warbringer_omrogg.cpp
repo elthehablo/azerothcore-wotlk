@@ -195,7 +195,7 @@ public:
                                 LOG_ERROR("server", "Non-burning phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_NON_BURNING_PHASE)));
                                 scheduler.Schedule(1s, [this](TaskContext context)
                                 {
-                                    LOG_ERROR("server", "Full phase scheduled: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_FULL_PHASE)));
+                                    LOG_ERROR("server", "Full phase scheduled again: {}", std::to_string(scheduler.IsGroupScheduled(GROUP_FULL_PHASE)));
                                 });
                             });
                         });
