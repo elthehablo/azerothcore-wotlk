@@ -117,6 +117,7 @@ public:
             _JustEngagedWith();
             scheduler.Schedule(500ms, GROUP_FULL_PHASE, [this](TaskContext context)
             {
+
                 scheduler.Schedule(12100ms, 17300ms, GROUP_NON_BURNING_PHASE, [this](TaskContext context)
                 {
                     DoCastAOE(SPELL_THUNDERCLAP);
