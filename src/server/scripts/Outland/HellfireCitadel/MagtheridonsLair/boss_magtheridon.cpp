@@ -87,12 +87,10 @@ public:
     {
         boss_magtheridonAI(Creature* creature) : BossAI(creature, TYPE_MAGTHERIDON) 
         {
-            /*
             scheduler.SetValidator([this]
             {
                 return !me->HasUnitState(UNIT_STATE_CASTING);
             });
-            */
         }
 
         void Reset() override
@@ -161,12 +159,6 @@ public:
             _JustEngagedWith();
             Talk(SAY_EMOTE_BEGIN);
 
-            me->Yell("I have been engaged!", LANG_UNIVERSAL);
-            LOG_ERROR("server", "Data {}", "engage ping");
-            scheduler.Schedule(2s, [this](TaskContext /*context*/)
-            {
-                LOG_ERROR("server", "Data {}", "engage pong"); 
-            });
             scheduler.Schedule(60s, [this](TaskContext /*context*/)
             {
                 Talk(SAY_EMOTE_NEARLY);
