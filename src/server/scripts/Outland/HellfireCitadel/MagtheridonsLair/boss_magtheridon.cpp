@@ -107,7 +107,10 @@ public:
             _recentlySpoken = false;
             scheduler.Schedule(90s, [this](TaskContext context)
             {
-                Talk(SAY_TAUNT);
+                if(instance->GetBossState(NOT_STARTED))
+                {
+                    Talk(SAY_TAUNT);
+                }
                 context.Repeat(90s);
             });
             me->CastSpell(me, SPELL_SHADOW_CAGE, true);
