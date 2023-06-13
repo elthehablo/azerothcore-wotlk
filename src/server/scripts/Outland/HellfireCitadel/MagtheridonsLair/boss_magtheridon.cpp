@@ -359,6 +359,7 @@ public:
     }
 };
 
+//spell 30658, effect of spell 30657
 class spell_magtheridon_quake : public SpellScriptLoader
 {
 public:
@@ -367,7 +368,7 @@ public:
     class spell_magtheridon_quake_SpellScript : public SpellScript
     {
         PrepareSpellScript(spell_magtheridon_quake_SpellScript);
-
+        
         uint8 getRandomDirection()
         {
             //TODO: do something with orientation. it auto-changes
