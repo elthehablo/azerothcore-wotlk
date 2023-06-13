@@ -359,7 +359,8 @@ public:
     }
 };
 
-//spell 30658, effect of spell 30657
+//Quake 30657 has as effect 30658 which, when cast on self does consecutive jumps
+//we need to change the latter specific spell (30658)
 class spell_magtheridon_quake : public SpellScriptLoader
 {
 public:
@@ -397,6 +398,7 @@ public:
         {
             if (Creature* creature = GetUnitOwner()->ToCreature())
             {
+                //TODO: add custom jumps here?
                 creature->Yell("doing periodic effect", LANG_UNIVERSAL);
             }
         }
@@ -415,7 +417,7 @@ public:
     }
 };
 
-
+//spellscript for 30658?
 
 void AddSC_boss_magtheridon()
 {
