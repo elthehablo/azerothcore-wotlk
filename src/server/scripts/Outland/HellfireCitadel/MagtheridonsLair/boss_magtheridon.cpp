@@ -111,6 +111,7 @@ public:
             ScheduleHealthCheckEvent(30, [&] {
                 _currentPhase = 1;
                 Talk(SAY_PHASE3);
+                me->GetMotionMaster()->Clear();
                 scheduler.DelayAll(18s);
                 scheduler.Schedule(8s, [this](TaskContext /*context*/)
                 {
@@ -120,6 +121,7 @@ public:
                 {
                     DoCastSelf(SPELL_COLLAPSE_DAMAGE, true);
                     me->resetAttackTimer();
+                    me->GetMotionMaster()->MoveChase(me->GetVictim());
                     _currentPhase = 0;
                     scheduler.Schedule(20s, [this](TaskContext context)
                     {
