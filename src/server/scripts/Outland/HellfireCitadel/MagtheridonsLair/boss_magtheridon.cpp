@@ -171,17 +171,6 @@ public:
             scheduler.Schedule(60s, [this](TaskContext /*context*/)
             {
                 Talk(SAY_EMOTE_NEARLY);
-            }).Schedule(120s, [this](TaskContext /*context*/)
-            {
-                Talk(SAY_EMOTE_FREE);
-            }).Schedule(123s, [this](TaskContext /*context*/)
-            {
-                me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                me->SetImmuneToPC(false);
-                me->SetReactState(REACT_AGGRESSIVE);
-                instance->SetData(DATA_ACTIVATE_CUBES, 1);
-                me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
-
                 //le funny attempt at moving someone around
                 me->Yell("You are gonna fly!", LANG_UNIVERSAL);
                 scheduler.Schedule(10s, GROUP_QUAKE_FLY, [this](TaskContext context)
@@ -217,6 +206,21 @@ public:
                     me->Yell("You are stopping!", LANG_UNIVERSAL);
                     scheduler.CancelGroup(GROUP_QUAKE_FLY);
                 });
+
+
+            }).Schedule(120s, [this](TaskContext /*context*/)
+            {
+                Talk(SAY_EMOTE_FREE);
+            }).Schedule(123s, [this](TaskContext /*context*/)
+            {
+                me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                me->SetImmuneToPC(false);
+                me->SetReactState(REACT_AGGRESSIVE);
+                instance->SetData(DATA_ACTIVATE_CUBES, 1);
+                me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
+
+
+                
 
                 scheduler.Schedule(9s, [this](TaskContext context)
                 {
