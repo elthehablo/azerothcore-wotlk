@@ -58,7 +58,8 @@ enum Spells
 
 enum Groups
 {
-    GROUP_INTERRUPT_CHECK       = 0
+    GROUP_INTERRUPT_CHECK       = 0,
+    GROUP_QUAKE_FLY             = 1
 };
 
 class DealDebrisDamage : public BasicEvent
@@ -91,6 +92,12 @@ public:
             {
                 return !me->HasUnitState(UNIT_STATE_CASTING);
             });
+        }
+
+        uint8 getRandomDirection()
+        {
+            uint8 choice = urand(0, 3);
+            return choice;
         }
 
         void Reset() override
@@ -174,6 +181,42 @@ public:
                 me->SetReactState(REACT_AGGRESSIVE);
                 instance->SetData(DATA_ACTIVATE_CUBES, 1);
                 me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
+
+                //le funny attempt at moving someone around
+                me->GetVictim()->Yell("I am gonna fly!", LANG_UNIVERSAL);
+                scheduler.Schedule(2s, GROUP_QUAKE_FLY, [this](TaskContext context)
+                {
+                    if(Unit* victim = me->GetVictim())
+                    {
+                        me->GetVictim()->Yell("Yippee", LANG_UNIVERSAL);
+                        float currentPlayerPos[4] = {victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ(), victim->GetOrientation()};
+                        switch(getRandomDirection())
+                        {
+                            case 0:
+                                currentPlayerPos[0] = currentPlayerPos[0] - 5.0f;
+                                break;
+                            case 1:
+                                currentPlayerPos[1] = currentPlayerPos[1] + 5.0f;
+                                break;
+                            case 2:
+                                currentPlayerPos[0] = currentPlayerPos[0] + 5.0f;
+                                break;
+                            case 3:
+                                currentPlayerPos[1] = currentPlayerPos[1] - 5.0f;
+                                break;
+                            default:
+                                break;
+                        }
+                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 3.0f, 1.0f, 0);
+                        context.Repeat(2s);
+                    }
+                });
+
+                scheduler.Schedule(20s, GROUP_QUAKE_FLY, [this](TaskContext /*context*/)
+                {
+                    me->GetVictim()->Yell("I am stopping!", LANG_UNIVERSAL);
+                    scheduler.CancelGroup(GROUP_QUAKE_FLY);
+                });
 
                 scheduler.Schedule(9s, [this](TaskContext context)
                 {
