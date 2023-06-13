@@ -170,7 +170,7 @@ public:
 
             //le funny attempt at moving someone around
             me->Yell("You are gonna fly!", LANG_UNIVERSAL);
-            scheduler.Schedule(10s, GROUP_QUAKE_FLY, [this](TaskContext context)
+            scheduler.Schedule(5s, GROUP_QUAKE_FLY, [this](TaskContext context)
             {
                 if(Unit* victim = me->SelectNearestTarget(100.0f))
                 {
@@ -195,8 +195,9 @@ public:
                             default:
                                 break;
                         }
-                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 6.0f, 5.0f, 0);
-                        context.Repeat(2s);
+                        victim->GetMotionMaster()->Clear();
+                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 7.0f, 15.0f, 0);
+                        context.Repeat(1.5s);
                     }
                 }
             });
