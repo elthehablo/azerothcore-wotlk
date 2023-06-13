@@ -99,6 +99,7 @@ public:
 
         void Reset() override
         {
+            _recentlySpoken = false;
             events2.Reset();
             scheduler.Schedule(90s, [this](TaskContext context)
             {
@@ -112,7 +113,7 @@ public:
             me->SetImmuneToPC(true);
 
             ScheduleHealthCheckEvent(30, [&]{
-                //handle for set phase 1
+                //TODO: handle for set phase 1
                 Talk(SAY_PHASE3);
                 scheduler.DelayAll(18s);
                 scheduler.Schedule(8s, [this](TaskContext /*context*/)
@@ -123,7 +124,7 @@ public:
                 {
                     DoCastSelf(SPELL_COLLAPSE_DAMAGE, true);
                     me->resetAttackTimer();
-                    //handle for set phase 0
+                    //TODO: handle for set phase 0
                     scheduler.Schedule(20s, [this](TaskContext context)
                     {
                         if (Unit* target = SelectTarget(SelectTargetMethod::Random))
@@ -132,18 +133,23 @@ public:
                             me->m_Events.AddEvent(new DealDebrisDamage(*me, target->GetGUID()), me->m_Events.CalculateTime(5000));
                         }
                         context.Repeat(20s);
-                    })
+                    });
                 });
             });
         }
 
         void KilledUnit(Unit*  /*victim*/) override
         {
-            if (events.GetNextEventTime(EVENT_RECENTLY_SPOKEN) == 0)
+            if(!_recentlySpoken)
             {
-                events.ScheduleEvent(EVENT_RECENTLY_SPOKEN, 5000);
                 Talk(SAY_SLAY);
+                _recentlySpoken = true;
             }
+
+            scheduler.Schedule(5s, [this](TaskContext /*context*/)
+            {
+                _recentlySpoken = false;
+            });
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -235,12 +241,16 @@ public:
             if (!events.IsInPhase(1))
                 DoMeleeAttackIfReady();
         }
+private:
+    bool _recentlySpoken;   
+    
     };
 
     CreatureAI* GetAI(Creature* creature) const override
     {
         return GetMagtheridonsLairAI<boss_magtheridonAI>(creature);
     }
+
 };
 
 class spell_magtheridon_blaze : public SpellScriptLoader
