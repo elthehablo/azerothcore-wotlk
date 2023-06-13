@@ -86,14 +86,17 @@ public:
     {
         boss_magtheridonAI(Creature* creature) : BossAI(creature, TYPE_MAGTHERIDON) 
         {
+            /*
             scheduler.SetValidator([this]
             {
                 return !me->HasUnitState(UNIT_STATE_CASTING);
             });
+            */
         }
 
         void Reset() override
         {
+            _Reset();
             _currentPhase = 0;
             _recentlySpoken = false;
             scheduler.Schedule(90s, [this](TaskContext context)
@@ -101,13 +104,12 @@ public:
                 Talk(SAY_TAUNT);
                 context.Repeat(90s);
             });
-            _Reset();
             me->CastSpell(me, SPELL_SHADOW_CAGE, true);
             me->SetReactState(REACT_PASSIVE);
             me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
             me->SetImmuneToPC(true);
 
-            ScheduleHealthCheckEvent(30, [&]{
+            ScheduleHealthCheckEvent(30, [&] {
                 _currentPhase = 1;
                 Talk(SAY_PHASE3);
                 scheduler.DelayAll(18s);
