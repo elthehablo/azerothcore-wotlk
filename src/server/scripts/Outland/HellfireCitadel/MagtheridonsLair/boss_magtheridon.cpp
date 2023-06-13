@@ -19,6 +19,7 @@
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "magtheridons_lair.h"
+#include "TaskScheduler.h"
 
 enum Yells
 {
@@ -155,16 +156,6 @@ public:
             Talk(SAY_DEATH);
         }
 
-        void MoveInLineOfSight(Unit* /*who*/) override
-        { 
-            me->Yell("I see you non-scheduled!", LANG_UNIVERSAL);
-
-            scheduler.Schedule(2s, [this](TaskContext /*context*/)
-            {
-                me->Yell("I also see you, scheduled!", LANG_UNIVERSAL);
-            });
-        }
-
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
@@ -172,10 +163,11 @@ public:
 
             me->Yell("I have been engaged!", LANG_UNIVERSAL);
             LOG_ERROR("server", "Data {}", "engage ping");
-            scheduler.Schedule(2s, [this](TaskContext /*context*/)
+            _scheduler.Schedule(2s, [this](TaskContext /*context*/)
             {
                 LOG_ERROR("server", "Data {}", "engage pong"); 
-            }).Schedule(60s, [this](TaskContext /*context*/)
+            });
+            scheduler.Schedule(60s, [this](TaskContext /*context*/)
             {
                 Talk(SAY_EMOTE_NEARLY);
             }).Schedule(120s, [this](TaskContext /*context*/)
@@ -245,6 +237,7 @@ public:
     private:
         bool _recentlySpoken;
         uint8 _currentPhase;
+        TaskScheduler _scheduler;
     
     };
 
