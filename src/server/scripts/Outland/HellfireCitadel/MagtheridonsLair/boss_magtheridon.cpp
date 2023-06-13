@@ -155,7 +155,15 @@ public:
             Talk(SAY_DEATH);
         }
 
-        void MoveInLineOfSight(Unit* /*who*/) override { }
+        void MoveInLineOfSight(Unit* /*who*/) override
+        { 
+            me->Yell("I see you non-scheduled!", LANG_UNIVERSAL);
+
+            scheduler.Schedule(2s, [this](TaskContext /*context*/)
+            {
+                me->Yell("I also see you, scheduled!", LANG_UNIVERSAL);
+            });
+        }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
