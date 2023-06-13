@@ -55,10 +55,9 @@ enum Spells
     SPELL_DEBRIS_DAMAGE         = 30631
 };
 
-enum Events
+enum Groups
 {
-    EVENT_CHECK_GRASP           = 31,
-    EVENT_CANCEL_GRASP_CHECK    = 32
+    GROUP_INTERRUPT_CHECK       = 0
 };
 
 class DealDebrisDamage : public BasicEvent
@@ -93,15 +92,10 @@ public:
             });
         }
 
-        EventMap events2;
-
-
-
         void Reset() override
         {
             _currentPhase = 0;
             _recentlySpoken = false;
-            events2.Reset();
             scheduler.Schedule(90s, [this](TaskContext context)
             {
                 Talk(SAY_TAUNT);
@@ -163,7 +157,6 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            events2.Reset();
             _JustEngagedWith();
 
             Talk(SAY_EMOTE_BEGIN);
@@ -194,9 +187,20 @@ public:
                     scheduler.Schedule(7s, [this](TaskContext /*context*/)
                     {
                         DoCastSelf(SPELL_BLAST_NOVA);
-                        //leave with events until I find a better way to do it
-                        events.ScheduleEvent(EVENT_CANCEL_GRASP_CHECK, 12000);
-                        events2.ScheduleEvent(EVENT_CHECK_GRASP, 0);
+
+                        scheduler.Schedule(50ms, GROUP_INTERRUPT_CHECK, [this](TaskContext context)
+                        {
+                            if (me->GetAuraCount(SPELL_SHADOW_GRASP_VISUAL) == 5)
+                            {
+                                Talk(SAY_BANISH);
+                                me->InterruptNonMeleeSpells(true);
+                                scheduler.CancelGroup(GROUP_INTERRUPT_CHECK);
+                            }
+                            context.Repeat(50ms);
+                        }).Schedule(12s, GROUP_INTERRUPT_CHECK, [this](TaskContext /*context*/)
+                        {
+                            scheduler.CancelGroup(GROUP_INTERRUPT_CHECK);
+                        });
                     });
                     context.Repeat(50s);
                 }).Schedule(1320s, [this](TaskContext /*context*/)
@@ -211,20 +215,6 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            events2.Update(diff);
-            switch (events2.ExecuteEvent())
-            {
-                case EVENT_CHECK_GRASP:
-                    if (me->GetAuraCount(SPELL_SHADOW_GRASP_VISUAL) == 5)
-                    {
-                        Talk(SAY_BANISH);
-                        me->InterruptNonMeleeSpells(true);
-                        break;
-                    }
-                    events2.ScheduleEvent(EVENT_CHECK_GRASP, 0);
-                    break;
-            }
-
             if (!UpdateVictim())
                 return;
 
@@ -232,12 +222,6 @@ public:
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
 
-            switch (events.ExecuteEvent())
-            {
-                case EVENT_CANCEL_GRASP_CHECK:
-                    events2.Reset();
-                    break;
-            }
             //change to scheduler for this
             if (_currentPhase != 1)
             {
