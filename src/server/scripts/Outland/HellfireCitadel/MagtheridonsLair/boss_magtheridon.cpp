@@ -305,9 +305,41 @@ public:
     }
 };
 
+class spell_magtheridon_quake : public SpellScriptLoader
+{
+public:
+    spell_magtheridon_quake() : SpellScriptLoader("spell_magtheridon_quake") { }
+
+    class spell_magtheridon_quake_SpellScript : public SpellScript
+    {
+        PrepareSpellScript(spell_magtheridon_quake_SpellScript);
+
+        void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+        {
+            
+        }
+
+        void HandleDummyHitTarget(SpellEffIndex effIndex)
+        {
+            
+        }
+
+        void Register() override
+        {
+            OnEffectHitTarget += SpellEffectFn(spell_magtheridon_quake_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        }
+    };
+
+    SpellScript* GetSpellScript() const override
+    {
+        return new spell_magtheridon_quake_SpellScript();
+    }
+};
+
 void AddSC_boss_magtheridon()
 {
     new boss_magtheridon();
     new spell_magtheridon_blaze();
     new spell_magtheridon_shadow_grasp();
+    new spell_magtheridon_quake();
 }
