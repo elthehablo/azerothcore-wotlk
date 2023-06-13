@@ -175,29 +175,32 @@ public:
                 me->Yell("You are gonna fly!", LANG_UNIVERSAL);
                 scheduler.Schedule(10s, GROUP_QUAKE_FLY, [this](TaskContext context)
                 {
-                    if(Unit* victim = me->GetVictim())
+                    if(Unit* victim = me->SelectNearestTarget(100.0f))
                     {
-                        me->Yell("Yippee", LANG_UNIVERSAL);
-                        float currentPlayerPos[4] = {victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ(), victim->GetOrientation()};
-                        switch(getRandomDirection())
+                        if(victim->IsPlayer())
                         {
-                            case 0:
-                                currentPlayerPos[0] = currentPlayerPos[0] - 5.0f;
-                                break;
-                            case 1:
-                                currentPlayerPos[1] = currentPlayerPos[1] + 5.0f;
-                                break;
-                            case 2:
-                                currentPlayerPos[0] = currentPlayerPos[0] + 5.0f;
-                                break;
-                            case 3:
-                                currentPlayerPos[1] = currentPlayerPos[1] - 5.0f;
-                                break;
-                            default:
-                                break;
+                            me->Yell("Yippee", LANG_UNIVERSAL);
+                            float currentPlayerPos[4] = {victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ(), victim->GetOrientation()};
+                            switch(getRandomDirection())
+                            {
+                                case 0:
+                                    currentPlayerPos[0] = currentPlayerPos[0] - 5.0f;
+                                    break;
+                                case 1:
+                                    currentPlayerPos[1] = currentPlayerPos[1] + 5.0f;
+                                    break;
+                                case 2:
+                                    currentPlayerPos[0] = currentPlayerPos[0] + 5.0f;
+                                    break;
+                                case 3:
+                                    currentPlayerPos[1] = currentPlayerPos[1] - 5.0f;
+                                    break;
+                                default:
+                                    break;
+                            }
+                            victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 3.0f, 1.0f, 0);
+                            context.Repeat(2s);
                         }
-                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 3.0f, 1.0f, 0);
-                        context.Repeat(2s);
                     }
                 });
 
