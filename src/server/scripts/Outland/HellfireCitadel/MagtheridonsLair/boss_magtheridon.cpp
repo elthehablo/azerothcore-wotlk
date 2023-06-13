@@ -365,9 +365,9 @@ class spell_magtheridon_quake : public SpellScriptLoader
 public:
     spell_magtheridon_quake() : SpellScriptLoader("spell_magtheridon_quake") { }
 
-    class spell_magtheridon_quake_SpellScript : public SpellScript
+    class spell_magtheridon_quake_AuraScript : public AuraScript
     {
-        PrepareSpellScript(spell_magtheridon_quake_SpellScript);
+        PrepareAuraScript(spell_magtheridon_quake_AuraScript);
         
         uint8 getRandomDirection()
         {
@@ -377,51 +377,45 @@ public:
             return choice;
         }
 
-        void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+        void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
         {
-            LOG_ERROR("server", "Data {}", "script effect quake");
-            if (Unit* target = GetHitUnit())
+            SetDuration(13000);
+        }
+
+        void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+        {
+            if (Creature* creature = GetUnitOwner()->ToCreature())
             {
-                if (target->IsPlayer())
-                {
-                    LOG_ERROR("server", "Data {}", "target of spell found");
-                    float currentPlayerPos[4] = {target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), target->GetOrientation()};
+                creature->resetAttackTimer();
+                creature->SetReactState(REACT_AGGRESSIVE);
+                if (Unit* target = creature->GetVictim())
+                    creature->SetTarget(target->GetGUID());
+            }
+        }
 
-                    switch(getRandomDirection())
-                    {
-                        case 0:
-                            currentPlayerPos[0] = currentPlayerPos[0] - 5.0f;
-                            break;
-                        case 1:
-                            currentPlayerPos[1] = currentPlayerPos[1] + 5.0f;
-                            break;
-                        case 2:
-                            currentPlayerPos[0] = currentPlayerPos[0] + 5.0f;
-                            break;
-                        case 3:
-                            currentPlayerPos[1] = currentPlayerPos[1] - 5.0f;
-                            break;
-                        default:
-                            break;
-                    }
-
-                    target->GetMotionMaster()->Clear();
-                    target->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 15.0f, 20.0f, 0);
-                }
+        void OnPeriodic(AuraEffect const* aurEff)
+        {
+            if (Creature* creature = GetUnitOwner()->ToCreature())
+            {
+                creature->Yell("doing periodic effect", LANG_UNIVERSAL);
             }
         }
 
         void Register() override
         {
-            OnEffectHitTarget += SpellEffectFn(spell_magtheridon_quake_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            OnEffectApply += AuraEffectApplyFn(spell_magtheridon_quake_AuraScript::HandleEffectApply, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+            OnEffectRemove += AuraEffectRemoveFn(spell_magtheridon_quake_AuraScript::HandleEffectRemove, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+            OnEffectPeriodic += AuraEffectPeriodicFn(spell_magtheridon_quake_AuraScript::OnPeriodic, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
         }
     };
 
-    SpellScript* GetSpellScript() const override
+    AuraScript* GetAuraScript() const override
     {
-        return new spell_magtheridon_quake_SpellScript();
+        return new spell_magtheridon_quake_AuraScript();
     }
 };
+
+
 
 void AddSC_boss_magtheridon()
 {
