@@ -100,7 +100,6 @@ public:
             _Reset();
             _currentPhase = 0;
             _recentlySpoken = false;
-            _debugSchedulerCheck = true;
             scheduler.Schedule(90s, [this](TaskContext context)
             {
                 Talk(SAY_TAUNT);
@@ -164,7 +163,7 @@ public:
 
             me->Yell("I have been engaged!", LANG_UNIVERSAL);
             LOG_ERROR("server", "Data {}", "engage ping");
-            _scheduler.Schedule(2s, [this](TaskContext /*context*/)
+            scheduler.Schedule(2s, [this](TaskContext /*context*/)
             {
                 LOG_ERROR("server", "Data {}", "engage pong"); 
             });
@@ -221,21 +220,11 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if(_debugSchedulerCheck)
-            {
-                me->Yell("debug ping", LANG_UNIVERSAL);
-                _debugSchedulerCheck = false;
-                scheduler.Schedule(5s, [this](TaskContext)
-                {
-                    _debugSchedulerCheck = true;
-                    me->Yell("debug pong", LANG_UNIVERSAL);
-                });
-            }
-            
             if (!UpdateVictim())
                 return;
 
-            events.Update(diff);
+            scheduler.Update(diff);
+
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
 
@@ -247,10 +236,7 @@ public:
         }
     private:
         bool _recentlySpoken;
-        bool _debugSchedulerCheck;
         uint8 _currentPhase;
-        TaskScheduler _scheduler;
-    
     };
 
     CreatureAI* GetAI(Creature* creature) const override
