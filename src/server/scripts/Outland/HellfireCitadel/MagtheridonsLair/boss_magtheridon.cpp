@@ -99,6 +99,7 @@ public:
 
         void Reset() override
         {
+            _currentPhase = 0;
             _recentlySpoken = false;
             events2.Reset();
             scheduler.Schedule(90s, [this](TaskContext context)
@@ -113,7 +114,7 @@ public:
             me->SetImmuneToPC(true);
 
             ScheduleHealthCheckEvent(30, [&]{
-                //TODO: handle for set phase 1
+                _currentPhase = 1;
                 Talk(SAY_PHASE3);
                 scheduler.DelayAll(18s);
                 scheduler.Schedule(8s, [this](TaskContext /*context*/)
@@ -124,7 +125,7 @@ public:
                 {
                     DoCastSelf(SPELL_COLLAPSE_DAMAGE, true);
                     me->resetAttackTimer();
-                    //TODO: handle for set phase 0
+                    _currentPhase = 0;
                     scheduler.Schedule(20s, [this](TaskContext context)
                     {
                         if (Unit* target = SelectTarget(SelectTargetMethod::Random))
@@ -238,11 +239,14 @@ public:
                     break;
             }
             //change to scheduler for this
-            if (!events.IsInPhase(1))
+            if (_currentPhase != 1)
+            {
                 DoMeleeAttackIfReady();
+            }
         }
-private:
-    bool _recentlySpoken;   
+    private:
+        bool _recentlySpoken;
+        uint8 _currentPhase;
     
     };
 
