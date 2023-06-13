@@ -158,10 +158,14 @@ public:
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
-
             Talk(SAY_EMOTE_BEGIN);
 
-            scheduler.Schedule(60s, [this](TaskContext /*context*/)
+            me->Yell("I have been engaged!", LANG_UNIVERSAL);
+            LOG_ERROR("server", "Data {}", "engage ping");
+            scheduler.Schedule(2s, [this](TaskContext /*context*/)
+            {
+                LOG_ERROR("server", "Data {}", "engage pong"); 
+            }).Schedule(60s, [this](TaskContext /*context*/)
             {
                 Talk(SAY_EMOTE_NEARLY);
             }).Schedule(120s, [this](TaskContext /*context*/)
