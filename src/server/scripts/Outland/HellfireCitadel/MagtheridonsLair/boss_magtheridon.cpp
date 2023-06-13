@@ -196,7 +196,7 @@ public:
                                 break;
                         }
                         victim->GetMotionMaster()->Clear();
-                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 7.0f, 15.0f, 0);
+                        victim->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2],  15.0f, 20.0f, 0);
                         context.Repeat(1.5s);
                     }
                 }
@@ -301,6 +301,7 @@ public:
 
         void HandleScriptEffect(SpellEffIndex /*effIndex*/)
         {
+            LOG_ERROR("server", "Data {}", "blaze spell effect");
             if (Unit* target = GetHitUnit())
                 target->CastSpell(target, SPELL_BLAZE_SUMMON, true);
         }
@@ -374,6 +375,7 @@ public:
 
         void HandleScriptEffect(SpellEffIndex /*effIndex*/)
         {
+            LOG_ERROR("server", "Data {}", "script effect quake");
             if (Unit* target = GetHitUnit())
             {
                 if (target->IsPlayer())
@@ -400,7 +402,7 @@ public:
                     }
 
                     target->GetMotionMaster()->Clear();
-                    target->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 9.0f, 20.0f, 0);
+                    target->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 15.0f, 20.0f, 0);
                 }
             }
         }
