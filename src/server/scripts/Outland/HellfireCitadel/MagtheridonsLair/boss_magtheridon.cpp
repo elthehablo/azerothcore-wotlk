@@ -178,6 +178,8 @@ public:
                 me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 me->SetImmuneToPC(false);
                 me->SetReactState(REACT_AGGRESSIVE);
+                instance->SetData(DATA_ACTIVATE_CUBES, 1);
+                me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
 
                 scheduler.Schedule(9s, [this](TaskContext context)
                 {
@@ -213,9 +215,6 @@ public:
                 {
                     DoCastSelf(SPELL_BERSERK, true);
                 });
-
-                instance->SetData(DATA_ACTIVATE_CUBES, 1);
-                me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
             });
         }
 
