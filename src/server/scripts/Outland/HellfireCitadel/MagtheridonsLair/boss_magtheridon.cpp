@@ -100,6 +100,7 @@ public:
             _Reset();
             _currentPhase = 0;
             _recentlySpoken = false;
+            _debugSchedulerCheck = true;
             scheduler.Schedule(90s, [this](TaskContext context)
             {
                 Talk(SAY_TAUNT);
@@ -220,6 +221,17 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
+            if(_debugSchedulerCheck)
+            {
+                me->Yell("debug ping", LANG_UNIVERSAL);
+                _debugSchedulerCheck = false;
+                scheduler.Schedule(5s, [this](TaskContext)
+                {
+                    _debugSchedulerCheck = true;
+                    me->Yell("debug pong", LANG_UNIVERSAL);
+                });
+            }
+            
             if (!UpdateVictim())
                 return;
 
@@ -235,6 +247,7 @@ public:
         }
     private:
         bool _recentlySpoken;
+        bool _debugSchedulerCheck;
         uint8 _currentPhase;
         TaskScheduler _scheduler;
     
