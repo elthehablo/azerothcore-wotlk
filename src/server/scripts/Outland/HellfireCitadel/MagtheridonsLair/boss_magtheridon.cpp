@@ -183,12 +183,12 @@ public:
                 me->RemoveAurasDueToSpell(SPELL_SHADOW_CAGE);
 
                 //le funny attempt at moving someone around
-                me->GetVictim()->Yell("I am gonna fly!", LANG_UNIVERSAL);
-                scheduler.Schedule(2s, GROUP_QUAKE_FLY, [this](TaskContext context)
+                me->Yell("You are gonna fly!", LANG_UNIVERSAL);
+                scheduler.Schedule(10s, GROUP_QUAKE_FLY, [this](TaskContext context)
                 {
                     if(Unit* victim = me->GetVictim())
                     {
-                        me->GetVictim()->Yell("Yippee", LANG_UNIVERSAL);
+                        me->Yell("Yippee", LANG_UNIVERSAL);
                         float currentPlayerPos[4] = {victim->GetPositionX(), victim->GetPositionY(), victim->GetPositionZ(), victim->GetOrientation()};
                         switch(getRandomDirection())
                         {
@@ -214,7 +214,7 @@ public:
 
                 scheduler.Schedule(20s, GROUP_QUAKE_FLY, [this](TaskContext /*context*/)
                 {
-                    me->GetVictim()->Yell("I am stopping!", LANG_UNIVERSAL);
+                    me->Yell("You are stopping!", LANG_UNIVERSAL);
                     scheduler.CancelGroup(GROUP_QUAKE_FLY);
                 });
 
