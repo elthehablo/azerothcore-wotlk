@@ -364,14 +364,45 @@ public:
     {
         PrepareSpellScript(spell_magtheridon_quake_SpellScript);
 
-        void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+        uint8 getRandomDirection()
         {
-            
+            //TODO: do something with orientation. it auto-changes
+            //TODO: could work with vector instead to actually return
+            uint8 choice = urand(0, 3);
+            return choice;
         }
 
-        void HandleDummyHitTarget(SpellEffIndex effIndex)
+        void HandleScriptEffect(SpellEffIndex /*effIndex*/)
         {
-            
+            if (Unit* target = GetHitUnit())
+            {
+                if (target->IsPlayer())
+                {
+                    LOG_ERROR("server", "Data {}", "target of spell found");
+                    float currentPlayerPos[4] = {target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), target->GetOrientation()};
+
+                    switch(getRandomDirection())
+                    {
+                        case 0:
+                            currentPlayerPos[0] = currentPlayerPos[0] - 5.0f;
+                            break;
+                        case 1:
+                            currentPlayerPos[1] = currentPlayerPos[1] + 5.0f;
+                            break;
+                        case 2:
+                            currentPlayerPos[0] = currentPlayerPos[0] + 5.0f;
+                            break;
+                        case 3:
+                            currentPlayerPos[1] = currentPlayerPos[1] - 5.0f;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    target->GetMotionMaster()->Clear();
+                    target->GetMotionMaster()->MoveJump(currentPlayerPos[0], currentPlayerPos[1], currentPlayerPos[2], 9.0f, 20.0f, 0);
+                }
+            }
         }
 
         void Register() override
