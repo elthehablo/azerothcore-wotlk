@@ -412,20 +412,21 @@ struct boss_krosh_firehand : public ScriptedAI
         me->SetInCombatWithZone();
         instance->SetBossState(DATA_MAULGAR, IN_PROGRESS);
 
-        _scheduler.Schedule(1500ms, [this](TaskContext context)
+        _scheduler.Schedule(1200ms, [this](TaskContext context)
         {
             DoCastSelf(SPELL_SPELLSHIELD);
-            context.Repeat(30s);
-        }).Schedule(3500ms, [this](TaskContext context)
+            context.Repeat(30300ms);
+        }).Schedule(3600ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_GREATER_FIREBALL);
-            context.Repeat(1s);
-        }).Schedule(8s, [this](TaskContext context)
+            context.Repeat(3600ms);
+        }).Schedule(7200ms, [this](TaskContext context)
         {
             if (me->SelectNearestPlayer(15.0f))
             {
                     DoCastAOE(SPELL_BLAST_WAVE);
             }
+            context.Repeat(7200ms);
         });
     }
 
