@@ -183,7 +183,7 @@ struct boss_olm_the_summoner : public ScriptedAI
 
     void Reset() override
     {
-        events.Reset();
+        ScriptedAI::Reset();
         summons.DespawnAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
@@ -256,7 +256,7 @@ struct boss_kiggler_the_crazed : public ScriptedAI
 
     void Reset() override
     {
-        events.Reset();
+        ScriptedAI::Reset();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
@@ -330,7 +330,7 @@ struct boss_blindeye_the_seer : public ScriptedAI
 
     void Reset() override
     {
-        events.Reset();
+        ScriptedAI::Reset();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
@@ -391,7 +391,7 @@ struct boss_krosh_firehand : public ScriptedAI
 
     void Reset() override
     {
-        events.Reset();
+        ScriptedAI::Reset();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
