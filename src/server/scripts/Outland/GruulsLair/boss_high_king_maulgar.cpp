@@ -183,7 +183,7 @@ struct boss_olm_the_summoner : public ScriptedAI
 
     void Reset() override
     {
-        ScriptedAI::Reset();
+        _scheduler.CancelAll();
         summons.DespawnAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
@@ -256,7 +256,7 @@ struct boss_kiggler_the_crazed : public ScriptedAI
 
     void Reset() override
     {
-        ScriptedAI::Reset();
+        _scheduler.CancelAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
@@ -265,10 +265,10 @@ struct boss_kiggler_the_crazed : public ScriptedAI
         me->SetInCombatWithZone();
         instance->SetBossState(DATA_MAULGAR, IN_PROGRESS);
 
-        _scheduler.Schedule(1500ms, [this](TaskContext context)
+        _scheduler.Schedule(1s, [this](TaskContext context)
         {
             DoCastVictim(SPELL_LIGHTNING_BOLT);
-            context.Repeat(1500ms);
+            context.Repeat(2s);
         }).Schedule(5s, [this](TaskContext context)
         {
             DoCastVictim(SPELL_ARCANE_SHOCK);
@@ -330,7 +330,7 @@ struct boss_blindeye_the_seer : public ScriptedAI
 
     void Reset() override
     {
-        ScriptedAI::Reset();
+        _scheduler.CancelAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
@@ -391,7 +391,7 @@ struct boss_krosh_firehand : public ScriptedAI
 
     void Reset() override
     {
-        ScriptedAI::Reset();
+        _scheduler.CancelAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
     }
 
