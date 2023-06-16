@@ -74,12 +74,6 @@ struct boss_gruul : public BossAI
         _JustEngagedWith();
         Talk(SAY_AGGRO);
 
-        events.ScheduleEvent(EVENT_GROWTH, 30000);
-        events.ScheduleEvent(EVENT_CAVE_IN, _caveInTimer);
-        events.ScheduleEvent(EVENT_REVERBERATION, 20000);
-        events.ScheduleEvent(EVENT_HURTFUL_STRIKE, 10000);
-        events.ScheduleEvent(EVENT_GROUND_SLAM, 35000);
-
         scheduler.Schedule(30s, [this](TaskContext context)
         {
             Talk(EMOTE_GROW);
