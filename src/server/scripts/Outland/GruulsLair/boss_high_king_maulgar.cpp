@@ -79,14 +79,14 @@ struct boss_high_king_maulgar : public BossAI
             Talk(SAY_ENRAGE);
             DoCastSelf(SPELL_FLURRY);
 
-            scheduler.Schedule(50ms, [this](TaskContext context)
+            scheduler.Schedule(0ms, [this](TaskContext context)
             {
                 DoCastRandomTarget(SPELL_BERSERKER_C);
                 context.Repeat(35s);
-            }).Schedule(30s, [this](TaskContext context)
+            }).Schedule(0ms, [this](TaskContext context)
             {
                 DoCastSelf(SPELL_ROAR);
-                context.Repeat(40s);
+                context.Repeat(20600ms, 29100ms);
             });
         });
     }
@@ -137,19 +137,19 @@ struct boss_high_king_maulgar : public BossAI
         _JustEngagedWith();
         Talk(SAY_AGGRO);
 
-        scheduler.Schedule(10s, [this](TaskContext context)
+        scheduler.Schedule(9500ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_ARCING_SMASH);
-            context.Repeat(10s);
-        }).Schedule(15s, [this](TaskContext context)
+            context.Repeat(9500ms, 12s);
+        }).Schedule(15700ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_MIGHTY_BLOW);
-            context.Repeat(15s);
-        }).Schedule(54s, [this](TaskContext context)
+            context.Repeat(16200ms, 19s);
+        }).Schedule(67000ms, [this](TaskContext context)
         {
             scheduler.DelayAll(15s);
             DoCastSelf(SPELL_WHIRLWIND);
-            context.Repeat(54s);
+            context.Repeat(45s, 60s);
         });
     }
 
