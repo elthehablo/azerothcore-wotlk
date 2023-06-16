@@ -202,18 +202,21 @@ struct boss_olm_the_summoner : public ScriptedAI
         me->SetInCombatWithZone();
         instance->SetBossState(DATA_MAULGAR, IN_PROGRESS);
 
-        _scheduler.Schedule(500ms, [this](TaskContext context)
+        _scheduler.Schedule(1200ms, [this](TaskContext context)
         {
             DoCastSelf(SPELL_SUMMON_WFH);
-            context.Repeat(50s);
-        }).Schedule(5s, [this](TaskContext context)
+            context.Repeat(48500ms);
+        }).Schedule(6050ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_DARK_DECAY);
-            context.Repeat(6500ms);
+            context.Repeat(6050ms);
         }).Schedule(6500ms, [this](TaskContext context)
         {
-            DoCastRandomTarget(SPELL_DEATH_COIL);
-            context.Repeat(7s);
+            if (me->HealthBelowPct(90))
+            {
+                DoCastRandomTarget(SPELL_DEATH_COIL);
+            }
+            context.Repeat(6s, 13500ms);
         });
     }
 
@@ -265,15 +268,15 @@ struct boss_kiggler_the_crazed : public ScriptedAI
         me->SetInCombatWithZone();
         instance->SetBossState(DATA_MAULGAR, IN_PROGRESS);
 
-        _scheduler.Schedule(1s, [this](TaskContext context)
+        _scheduler.Schedule(1200ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_LIGHTNING_BOLT);
-            context.Repeat(2s);
-        }).Schedule(5s, [this](TaskContext context)
+            context.Repeat(2400ms);
+        }).Schedule(29s, [this](TaskContext context)
         {
             DoCastVictim(SPELL_ARCANE_SHOCK);
-            context.Repeat(5s);
-        }).Schedule(25s, [this](TaskContext context)
+            context.Repeat(7200ms, 20600ms);
+        }).Schedule(23s, [this](TaskContext context)
         {
             //changed to work similarly to Ikiss poly
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_GREATER_POLYMORPH);
@@ -285,7 +288,7 @@ struct boss_kiggler_the_crazed : public ScriptedAI
             {
                 DoCast(target, SPELL_GREATER_POLYMORPH);
             }
-            context.Repeat(11s);
+            context.Repeat(10900ms);
         }).Schedule(30s, [this](TaskContext context)
         {
             if (me->SelectNearestPlayer(30.0f))
@@ -339,21 +342,21 @@ struct boss_blindeye_the_seer : public ScriptedAI
         me->SetInCombatWithZone();
         instance->SetBossState(DATA_MAULGAR, IN_PROGRESS);
 
-        _scheduler.Schedule(11s, [this](TaskContext context)
+        _scheduler.Schedule(7200ms, [this](TaskContext context)
         {
             if (Unit* target = DoSelectLowestHpFriendly(60.0f, 50000))
             {
                 DoCast(target, SPELL_HEAL);
             }
-            context.Repeat(6s);
-        }).Schedule(30s, [this](TaskContext context)
+            context.Repeat(7200ms);
+        }).Schedule(37500s, [this](TaskContext context)
         {
             DoCastSelf(SPELL_GREATER_PW_SHIELD);
-            context.Repeat(30s);
-        }).Schedule(31s, [this](TaskContext context)
-        {
-            DoCastSelf(SPELL_PRAYER_OH);
-            context.Repeat(30s);
+            _scheduler.Schedule(1200ms, [this](TaskContext)
+            {
+                DoCastSelf(SPELL_PRAYER_OH);
+            });
+            context.Repeat(54500ms, 63s);
         });
     }
 
