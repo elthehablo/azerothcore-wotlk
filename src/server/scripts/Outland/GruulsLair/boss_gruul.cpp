@@ -74,11 +74,11 @@ struct boss_gruul : public BossAI
         _JustEngagedWith();
         Talk(SAY_AGGRO);
 
-        scheduler.Schedule(30s, [this](TaskContext context)
+        scheduler.Schedule(30300ms, [this](TaskContext context)
         {
             Talk(EMOTE_GROW);
             DoCastSelf(SPELL_GROWTH);
-            context.Repeat(30s);
+            context.Repeat(30300ms);
         }).Schedule(_caveInTimer, [this](TaskContext context)
         {
             DoCastRandomTarget(SPELL_CAVE_IN);
@@ -106,8 +106,8 @@ struct boss_gruul : public BossAI
         {
             Talk(SAY_SLAM);
             DoCastSelf(SPELL_GROUND_SLAM);
-            scheduler.DelayAll(8001ms);
-            scheduler.Schedule(8s, [this](TaskContext)
+            scheduler.DelayAll(9701ms);
+            scheduler.Schedule(9700ms, [this](TaskContext)
             {
                 Talk(SAY_SHATTER);
                 me->RemoveAurasDueToSpell(SPELL_LOOK_AROUND);
