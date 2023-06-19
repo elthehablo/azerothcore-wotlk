@@ -413,6 +413,8 @@ class go_blackened_urn : public GameObjectScript
 public:
     go_blackened_urn() : GameObjectScript("go_blackened_urn") { }
 
+    //if we summon an entity instead of using a sort of invisible entity, we could unsummon boss on reset
+    //right now that doesn't work because of how the urn works
     bool OnGossipHello(Player* player, GameObject* go) override
     {
         if (InstanceScript* pInstance = go->GetInstanceScript())
