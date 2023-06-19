@@ -74,7 +74,7 @@ struct boss_nightbane : public BossAI
 {
     boss_nightbane(Creature* creature) : BossAI(creature, DATA_NIGHTBANE)
     {
-        SetNoCastValidator();
+        //SetNoCastValidator();
         instance = creature->GetInstanceScript();
         _intro = true;
         _skeletonCount = 5;
@@ -115,6 +115,7 @@ struct boss_nightbane : public BossAI
             //me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
             Position preSpawnPosis = me->GetHomePosition();
             me->NearTeleportTo(preSpawnPosis);
+            instance->SetData(DATA_NIGHTBANE, NOT_STARTED);
             _intro = true;
             Phase = 1;
             MovePhase = 0;
