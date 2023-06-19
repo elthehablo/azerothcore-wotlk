@@ -144,11 +144,9 @@ struct boss_nightbane : public BossAI
     }
 
     void ScheduleGround() {
-        me->Yell("Scheduling my ground spells!", LANG_UNIVERSAL);
         scheduler.Schedule(30s, GROUP_GROUND, [this](TaskContext context)
         {
-            me->Yell("Bellowing roar", LANG_UNIVERSAL);
-            DoCastVictim(SPELL_BELLOWING_ROAR);
+            DoCastAOE(SPELL_BELLOWING_ROAR);
             context.Repeat(30s, 40s);
         }).Schedule(15s, GROUP_GROUND, [this](TaskContext context)
         {
@@ -176,7 +174,6 @@ struct boss_nightbane : public BossAI
     }
 
     void ScheduleFly() {
-        me->Yell("Scheduling my air spells!", LANG_UNIVERSAL);
         for (uint8 i = 0; i <= _skeletonCount; ++i)
         {
             DoCastVictim(SPELL_SUMMON_SKELETON);
@@ -186,7 +183,6 @@ struct boss_nightbane : public BossAI
         scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
         {
             if (!_rainBones) {
-                me->Yell("Rain of bones!", LANG_UNIVERSAL);
                 DoCastVictim(SPELL_RAIN_OF_BONES);
                 _rainBones = true;
             }
@@ -203,8 +199,6 @@ struct boss_nightbane : public BossAI
             context.Repeat(1500ms); //timer wrong?
         }).Schedule(13s, GROUP_FLYING, [this](TaskContext context)
         {
-            //fireball barrage
-            //TODO: add fireball barrage from my other PR
             DoCastOnFarAwayPlayers(SPELL_FIREBALL_BARRAGE, false, 80.0f);
             context.Repeat(20s);
         });
@@ -321,8 +315,6 @@ struct boss_nightbane : public BossAI
             scheduler.CancelGroup(GROUP_FLYING);
             scheduler.Schedule(2s, [this](TaskContext)
             {
-                //debug
-                me->Yell("I can cast again on the ground!", LANG_UNIVERSAL);
                 ScheduleGround();
             });
         });
