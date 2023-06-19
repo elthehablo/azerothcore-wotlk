@@ -74,10 +74,7 @@ struct boss_nightbane : public BossAI
 {
     boss_nightbane(Creature* creature) : BossAI(creature, DATA_NIGHTBANE)
     {
-        scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
-        });
+        SetNoCastValidator();
         instance = creature->GetInstanceScript();
         _intro = true;
         _skeletonCount = 5;
@@ -114,11 +111,19 @@ struct boss_nightbane : public BossAI
         if (!_intro)
         {
             me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
-            me->GetMotionMaster()->MoveTargetedHome();
+            me->DespawnOrUnsummon();
         }
 
         ScheduleHealthCheckEvent({25, 50, 70}, [&]{
             TakeOff();
+        });
+    }
+
+    void SetNoCastValidator() 
+    {
+        scheduler.SetValidator([this]
+        {
+            return !me->HasUnitState(UNIT_STATE_CASTING);
         });
     }
 
@@ -130,20 +135,6 @@ struct boss_nightbane : public BossAI
             instance->HandleGameObject(instance->GetGuidData(DATA_MASTERS_TERRACE_DOOR_2), open);
         }
     }
-    /*
-    void EnterEvadeMode(EvadeReason why) override
-    {
-        if(instance->GetData(DATA_NIGHTBANE) == IN_PROGRESS)
-        {
-            me->Yell("I am despawning!", LANG_UNIVERSAL);
-            scheduler.Schedule(5s, [this](TaskContext)
-            {
-                me->DespawnOrUnsummon();
-                instance->SetData(DATA_NIGHTBANE, NOT_STARTED);
-            });
-        }
-    }
-    */
 
     void JustEngagedWith(Unit* /*who*/) override
     {
@@ -189,14 +180,21 @@ struct boss_nightbane : public BossAI
     void ScheduleFly() {
         _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
+        scheduler.Schedule(7s, GROUP_FLYING, [this](TaskContext context)
         {
             //spawns skeletons every second until skeletonCount is reached
+            scheduler.ClearValidator();
+            me->Yell("CLEARING VALIDATOR", LANG_UNIVERSAL);
             if(_skeletonSpawnCounter < _skeletonCount)
             {
                 DoCastVictim(SPELL_SUMMON_SKELETON);
                 _skeletonSpawnCounter++;
                 context.Repeat(2s);
+            }
+            if(_skeletonSpawnCounter >= _skeletonCount)
+            {
+                SetNoCastValidator();
+                me->Yell("RE-SETTING VALIDATOR", LANG_UNIVERSAL);
             }
         }).Schedule(5s, GROUP_FLYING, [this](TaskContext)
         {
@@ -239,10 +237,10 @@ struct boss_nightbane : public BossAI
             ScriptedAI::MoveInLineOfSight(who);
     }
 
-    void JustReachedHome() override
-    {
-        me->Yell("I reached home. I can despawn", LANG_UNIVERSAL);
-    }
+    //void JustReachedHome() override
+    //{
+    //    me->DespawnOrUnsummon();
+    //}
 
     void MovementInform(uint32 type, uint32 id) override
     {
