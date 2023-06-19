@@ -354,6 +354,8 @@ struct boss_nightbane : public BossAI
         if (_flying)
             return;
 
+        scheduler.Update(diff);
+
         //  Phase 1 "GROUND FIGHT"
         if (Phase == 1)
         {
