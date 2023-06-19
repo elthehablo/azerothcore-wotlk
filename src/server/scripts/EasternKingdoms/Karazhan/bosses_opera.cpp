@@ -24,6 +24,7 @@ EndScriptData */
 
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "TaskScheduler.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "SpellInfo.h"
@@ -112,358 +113,298 @@ void SummonCroneIfReady(InstanceScript* instance, Creature* creature)
     }
 }
 
-class boss_dorothee : public CreatureScript
+struct boss_dorothee : public ScriptedAI
 {
-public:
-    boss_dorothee() : CreatureScript("boss_dorothee") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
+    boss_dorothee(Creature* creature) : ScriptedAI(creature)
     {
-        return GetKarazhanAI<boss_dorotheeAI>(creature);
+        SetCombatMovement(false);
+        //this is kinda a big no-no. but it will prevent her from moving to chase targets. she should just cast her spells. in this case, since there is not really something to LOS her with or get out of range this would work. but a more elegant solution would be better
+        Initialize();
+        instance = creature->GetInstanceScript();
     }
 
-    struct boss_dorotheeAI : public ScriptedAI
+
+
+    void Initialize()
     {
-        boss_dorotheeAI(Creature* creature) : ScriptedAI(creature)
+        WaterBoltTimer = 0;
+        FearTimer = 15000;
+        SummonTitoTimer = 41000;
+
+        TitoDied = false;
+        _introDone = false;
+    }
+
+    InstanceScript* instance;
+    bool TitoDied;
+
+    uint32 AggroTimer;
+
+    uint32 WaterBoltTimer;
+    uint32 FearTimer;
+    uint32 SummonTitoTimer;
+
+
+    void Reset() override
+    {
+        Initialize();
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        me->SetInCombatWithZone();
+
+        _scheduler.Schedule(1ms, [this](TaskContext context)
         {
-            SetCombatMovement(false);
-            //this is kinda a big no-no. but it will prevent her from moving to chase targets. she should just cast her spells. in this case, since there is not really something to LOS her with or get out of range this would work. but a more elegant solution would be better
-            Initialize();
-            instance = creature->GetInstanceScript();
-        }
-
-        void Initialize()
+            DoCastRandomTarget(SPELL_WATERBOLT);
+            context.Repeat(1500ms);
+        }).Schedule(15s, [this](TaskContext context)
         {
-            AggroTimer = 12000;
-
-            WaterBoltTimer = 0;
-            FearTimer = 15000;
-            SummonTitoTimer = 41000;
-
-            SummonedTito = false;
-            TitoDied = false;
-        }
-
-        InstanceScript* instance;
-
-        uint32 AggroTimer;
-
-        uint32 WaterBoltTimer;
-        uint32 FearTimer;
-        uint32 SummonTitoTimer;
-
-        bool SummonedTito;
-        bool TitoDied;
-        bool IntroDone = false;
-
-        void Reset() override
+            DoCastVictim(SPELL_SCREAM);
+            context.Repeat(30s);
+        }).Schedule(41s, [this](TaskContext)
         {
-            Initialize();
-        }
+            SummonTito();
+        });
+    }
 
-        void JustEngagedWith(Unit* /*who*/) override
-        {
-            me->SetInCombatWithZone();
-        }
+    void JustReachedHome() override
+    {
+        me->DespawnOrUnsummon();
+    }
 
-        void JustReachedHome() override
+    void SummonTito();
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        Talk(SAY_DOROTHEE_DEATH);
+        SummonCroneIfReady(instance, me);
+        me->DespawnOrUnsummon();
+    }
+
+    void AttackStart(Unit* who) override
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        ScriptedAI::AttackStart(who);
+    }
+
+    void MoveInLineOfSight(Unit* who) override
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        ScriptedAI::MoveInLineOfSight(who);
+    }
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        ScriptedAI::EnterEvadeMode(reason);
+
+        if(!me->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
         {
+            instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
             me->DespawnOrUnsummon();
         }
+    }
 
-        void SummonTito();
-
-        void JustDied(Unit* /*killer*/) override
+    void UpdateAI(uint32 diff) override
+    {
+        if(!_introDone)
         {
-            Talk(SAY_DOROTHEE_DEATH);
-            SummonCroneIfReady(instance, me);
-            me->DespawnOrUnsummon();
-        }
-
-        void AttackStart(Unit* who) override
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::AttackStart(who);
-        }
-
-        void MoveInLineOfSight(Unit* who) override
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::MoveInLineOfSight(who);
-        }
-
-        void EnterEvadeMode(EvadeReason reason) override
-        {
-            ScriptedAI::EnterEvadeMode(reason);
-
-            if(!me->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
+            if(!me->IsInEvadeMode())
             {
-                instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
-                me->DespawnOrUnsummon();
-            }
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            if(!IntroDone)
-            {
-                if(!me->IsInEvadeMode())
-                {
-                    Talk(SAY_DOROTHEE_AGGRO);
-                    IntroDone = true;
-                }
-            }
-
-            if (AggroTimer)
-            {
-                if (AggroTimer <= diff)
+                Talk(SAY_DOROTHEE_AGGRO);
+                _introDone = true;
+                _scheduler.Schedule(12s, [this](TaskContext)
                 {
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->SetImmuneToPC(false);
                     me->SetInCombatWithZone();
-                    AggroTimer = 0;
-                }
-                else
-                    AggroTimer -= diff;
+                });
             }
-
-            if (!UpdateVictim())
-                return;
-
-            if (WaterBoltTimer <= diff)
-            {
-                DoCast(SelectTarget(SelectTargetMethod::Random, 0), SPELL_WATERBOLT);
-                WaterBoltTimer = 1500;
-            }
-            else
-                WaterBoltTimer -= diff;
-
-            if (FearTimer <= diff)
-            {
-                DoCastVictim(SPELL_SCREAM);
-                FearTimer = 30000;
-            }
-            else
-                FearTimer -= diff;
-
-            if (!SummonedTito)
-            {
-                if (SummonTitoTimer <= diff)
-                    SummonTito();
-                else
-                    SummonTitoTimer -= diff;
-            }
-
-            DoMeleeAttackIfReady();
         }
-    };
+
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
+
+        _scheduler.Update(diff);
+    }
+private:
+    TaskScheduler _scheduler;
+
+    bool _introDone;
 };
 
-class npc_tito : public CreatureScript
+struct npc_tito : public ScriptedAI
 {
-public:
-    npc_tito() : CreatureScript("npc_tito") { }
+    npc_tito(Creature* creature) : ScriptedAI(creature) { }
 
-    CreatureAI* GetAI(Creature* creature) const override
+
+
+    ObjectGuid DorotheeGUID;
+    uint32 YipTimer;
+
+    void Reset() override
     {
-        return GetKarazhanAI<npc_titoAI>(creature);
+        DorotheeGUID.Clear();
+        YipTimer = 10000;
     }
 
-    struct npc_titoAI : public ScriptedAI
+    void JustEngagedWith(Unit* /*who*/) override
     {
-        npc_titoAI(Creature* creature) : ScriptedAI(creature) { }
+        DoZoneInCombat();
 
-        ObjectGuid DorotheeGUID;
-        uint32 YipTimer;
-
-        void Reset() override
+        _scheduler.Schedule(10s, [this](TaskContext context)
         {
-            DorotheeGUID.Clear();
-            YipTimer = 10000;
-        }
+            DoCastVictim(SPELL_YIPPING);
+            context.Repeat(10s);
+        });
+    }
 
-        void JustEngagedWith(Unit* /*who*/) override
+    void JustDied(Unit* /*killer*/) override
+    {
+        if (DorotheeGUID)
         {
-            DoZoneInCombat();
-        }
-
-        void JustDied(Unit* /*killer*/) override
-        {
-            if (DorotheeGUID)
+            Creature* Dorothee = ObjectAccessor::GetCreature(*me, DorotheeGUID);
+            if (Dorothee && Dorothee->IsAlive())
             {
-                Creature* Dorothee = ObjectAccessor::GetCreature(*me, DorotheeGUID);
-                if (Dorothee && Dorothee->IsAlive())
-                {
-                    CAST_AI(boss_dorothee::boss_dorotheeAI, Dorothee->AI())->TitoDied = true;
-                    Talk(SAY_DOROTHEE_TITO_DEATH, Dorothee);
-                }
+                Talk(SAY_DOROTHEE_TITO_DEATH, Dorothee);
             }
-            me->DespawnOrUnsummon();
         }
+        me->DespawnOrUnsummon();
+    }
 
-        void UpdateAI(uint32 diff) override
-        {
-            if (!UpdateVictim())
-                return;
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
 
-            if (YipTimer <= diff)
-            {
-                DoCastVictim(SPELL_YIPPING);
-                YipTimer = 10000;
-            }
-            else
-                YipTimer -= diff;
-
-            DoMeleeAttackIfReady();
-        }
-    };
+        _scheduler.Update(diff);
+        
+        DoMeleeAttackIfReady();
+    }
+private:
+    TaskScheduler _scheduler;
 };
 
-void boss_dorothee::boss_dorotheeAI::SummonTito()
+
+void boss_dorothee::SummonTito()
 {
     if (Creature* pTito = me->SummonCreature(CREATURE_TITO, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000))
     {
         Talk(SAY_DOROTHEE_SUMMON);
-        CAST_AI(npc_tito::npc_titoAI, pTito->AI())->DorotheeGUID = me->GetGUID();
+        CAST_AI(npc_tito, pTito->AI())->DorotheeGUID = me->GetGUID();
         pTito->AI()->AttackStart(me->GetVictim());
-        SummonedTito = true;
         TitoDied = false;
     }
 }
 
-class boss_roar : public CreatureScript
+struct boss_roar : public ScriptedAI
 {
-public:
-    boss_roar() : CreatureScript("boss_roar") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
+    boss_roar(Creature* creature) : ScriptedAI(creature)
     {
-        return GetKarazhanAI<boss_roarAI>(creature);
+        instance = creature->GetInstanceScript();
     }
 
-    struct boss_roarAI : public ScriptedAI
+    InstanceScript* instance;
+
+    uint32 AggroTimer;
+    uint32 MangleTimer;
+    uint32 ShredTimer;
+    uint32 ScreamTimer;
+
+    void Reset() override
     {
-        boss_roarAI(Creature* creature) : ScriptedAI(creature)
+        _scheduler.Schedule(16670ms, [this](TaskContext)
         {
-            instance = creature->GetInstanceScript();
-        }
+            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            me->SetImmuneToPC(false);
+            me->SetInCombatWithZone();
+        });
+    }
 
-        InstanceScript* instance;
+    void MoveInLineOfSight(Unit* who) override
 
-        uint32 AggroTimer;
-        uint32 MangleTimer;
-        uint32 ShredTimer;
-        uint32 ScreamTimer;
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
 
-        void Reset() override
+        ScriptedAI::MoveInLineOfSight(who);
+    }
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        ScriptedAI::EnterEvadeMode(reason);
+
+        if(!me->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
         {
-            AggroTimer = 16670;
-            MangleTimer = 5000;
-            ShredTimer  = 10000;
-            ScreamTimer = 15000;
-        }
-
-        void MoveInLineOfSight(Unit* who) override
-
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::MoveInLineOfSight(who);
-        }
-
-        void EnterEvadeMode(EvadeReason reason) override
-        {
-            ScriptedAI::EnterEvadeMode(reason);
-
-            if(!me->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE))
-            {
-                instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
-                me->DespawnOrUnsummon();
-            }
-        }
-
-        void AttackStart(Unit* who) override
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::AttackStart(who);
-        }
-
-        void JustEngagedWith(Unit* /*who*/) override
-        {
-            Talk(SAY_ROAR_AGGRO);
-            DoZoneInCombat();
-        }
-
-        void JustReachedHome() override
-        {
+            instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
             me->DespawnOrUnsummon();
         }
+    }
 
-        void JustDied(Unit* /*killer*/) override
+    void AttackStart(Unit* who) override
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        ScriptedAI::AttackStart(who);
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        Talk(SAY_ROAR_AGGRO);
+        DoZoneInCombat();
+
+        _scheduler.Schedule(5s, [this](TaskContext context)
         {
-            Talk(SAY_ROAR_DEATH);
-            SummonCroneIfReady(instance, me);
-            me->DespawnOrUnsummon();
-        }
-
-        void KilledUnit(Unit* /*victim*/) override
+            DoCastVictim(SPELL_MANGLE);
+            context.Repeat(5s, 8s);
+        }).Schedule(10s, [this](TaskContext context)
         {
-            Talk(SAY_ROAR_SLAY);
-        }
-
-        void UpdateAI(uint32 diff) override
+            DoCastVictim(SPELL_SHRED);
+            context.Repeat(10s, 15s);
+        }).Schedule(15s, [this](TaskContext context)
         {
-            if (AggroTimer)
-            {
-                if (AggroTimer <= diff)
-                {
-                    me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    me->SetImmuneToPC(false);
-                    me->SetInCombatWithZone();
-                    AggroTimer = 0;
-                }
-                else
-                    AggroTimer -= diff;
-            }
+            DoCastVictim(SPELL_FRIGHTENED_SCREAM);
+            context.Repeat(20s, 30s);
+        });
+    }
 
-            if (!UpdateVictim())
-                return;
+    void JustReachedHome() override
+    {
+        me->DespawnOrUnsummon();
+    }
 
-            if (MangleTimer <= diff)
-            {
-                DoCastVictim(SPELL_MANGLE);
-                MangleTimer = urand(5000, 8000);
-            }
-            else
-                MangleTimer -= diff;
+    void JustDied(Unit* /*killer*/) override
+    {
+        Talk(SAY_ROAR_DEATH);
+        SummonCroneIfReady(instance, me);
+        me->DespawnOrUnsummon();
+    }
 
-            if (ShredTimer <= diff)
-            {
-                DoCastVictim(SPELL_SHRED);
-                ShredTimer = urand(10000, 15000);
-            }
-            else
-                ShredTimer -= diff;
+    void KilledUnit(Unit* /*victim*/) override
+    {
+        Talk(SAY_ROAR_SLAY);
+    }
 
-            if (ScreamTimer <= diff)
-            {
-                DoCastVictim(SPELL_FRIGHTENED_SCREAM);
-                ScreamTimer = urand(20000, 30000);
-            }
-            else
-                ScreamTimer -= diff;
+    void UpdateAI(uint32 diff) override
+    {
+        _scheduler.Update(diff);
 
-            DoMeleeAttackIfReady();
-        }
-    };
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
+    }
+private:
+    TaskScheduler _scheduler;
 };
+
 
 class boss_strawman : public CreatureScript
 {
@@ -1658,12 +1599,12 @@ void boss_julianne::boss_julianneAI::DamageTaken(Unit* /*done_by*/, uint32& dama
 
 void AddSC_bosses_opera()
 {
-    new boss_dorothee();
+    RegisterKarazhanCreatureAI(boss_dorothee);
     new boss_strawman();
     new boss_tinhead();
     new boss_roar();
     new boss_crone();
-    new npc_tito();
+    RegisterKarazhanCreatureAI(npc_tito);
     new npc_cyclone();
     new npc_grandmother();
     new boss_bigbadwolf();
