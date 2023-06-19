@@ -1602,7 +1602,7 @@ void AddSC_bosses_opera()
     RegisterKarazhanCreatureAI(boss_dorothee);
     new boss_strawman();
     new boss_tinhead();
-    new boss_roar();
+    RegisterKarazhanCreatureAI(boss_roar);
     new boss_crone();
     RegisterKarazhanCreatureAI(npc_tito);
     new npc_cyclone();
