@@ -115,6 +115,9 @@ struct boss_nightbane : public BossAI
             //me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
             Position preSpawnPosis = me->GetHomePosition();
             me->NearTeleportTo(preSpawnPosis);
+            _intro = true;
+            Phase = 1;
+            MovePhase = 0;
             
         }
 
@@ -184,23 +187,16 @@ struct boss_nightbane : public BossAI
     void ScheduleFly() {
         _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(3s, GROUP_FLYING, [this](TaskContext context)
+        scheduler.Schedule(8s, GROUP_FLYING, [this](TaskContext context)
         {
             //spawns skeletons every second until skeletonCount is reached
-            scheduler.ClearValidator();
-            me->Yell("CLEARING VALIDATOR", LANG_UNIVERSAL);
             if(_skeletonSpawnCounter < _skeletonCount)
             {
                 DoCastVictim(SPELL_SUMMON_SKELETON);
                 _skeletonSpawnCounter++;
                 context.Repeat(2s);
             }
-            if(_skeletonSpawnCounter >= _skeletonCount)
-            {
-                SetNoCastValidator();
-                me->Yell("RE-SETTING VALIDATOR", LANG_UNIVERSAL);
-            }
-        }).Schedule(5s, GROUP_FLYING, [this](TaskContext)
+        }).Schedule(2s, GROUP_FLYING, [this](TaskContext)
         {
             DoCastVictim(SPELL_RAIN_OF_BONES);
         }).Schedule(20s, GROUP_FLYING, [this](TaskContext context)
@@ -403,7 +399,6 @@ private:
     bool _flying;
     bool _movement;
 
-    uint32 FlyCount;
     uint32 MovePhase;
     uint8 _skeletonCount;
     uint8 _skeletonSpawnCounter;
