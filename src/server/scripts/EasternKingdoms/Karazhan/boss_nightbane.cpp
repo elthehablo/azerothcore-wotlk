@@ -80,6 +80,7 @@ struct boss_nightbane : public BossAI
         });
         instance = creature->GetInstanceScript();
         _intro = true;
+        _skeletonCount = 3;
     }
 
 
@@ -170,6 +171,12 @@ struct boss_nightbane : public BossAI
     }
 
     void ScheduleFly() {
+        for (uint8 i = 0; i <= _skeletonCount; ++i)
+        {
+            DoCastVictim(SPELL_SUMMON_SKELETON);
+            _skeletons = true;
+        }
+        
         scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
         {
             if (!_rainBones) {
@@ -275,11 +282,12 @@ struct boss_nightbane : public BossAI
 
         _flying = true;
 
-        //handle landing again
         
         ScheduleFly();
         _rainBones = false;
         _skeletons = false;
+
+        //handle landing again
         scheduler.Schedule(45s, 60s, [this](TaskContext)
         {
             Talk(YELL_LAND_PHASE);
@@ -363,6 +371,7 @@ private:
 
     uint32 FlyCount;
     uint32 MovePhase;
+    uint8 _skeletonCount;
 };
 class go_blackened_urn : public GameObjectScript
 {
