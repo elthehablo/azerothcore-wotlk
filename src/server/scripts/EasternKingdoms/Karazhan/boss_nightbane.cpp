@@ -205,8 +205,7 @@ struct boss_nightbane : public BossAI
         {
             //fireball barrage
             //TODO: add fireball barrage from my other PR
-            if (Unit* target = SelectTarget(SelectTargetMethod::MinDistance, 0))
-                    DoCast(target, SPELL_FIREBALL_BARRAGE);
+            DoCastOnFarAwayPlayers(SPELL_FIREBALL_BARRAGE, false, 80.0f);
             context.Repeat(20s);
         });
     }
@@ -276,6 +275,22 @@ struct boss_nightbane : public BossAI
         summoned->AI()->AttackStart(me->GetVictim());
     }
 
+    void DoCastOnFarAwayPlayers(uint32 spellid, bool triggered, float tresholddistance)
+    {
+        //resembles DoCastToAllHostilePlayers a bit/lot
+        ThreatContainer::StorageType targets = me->GetThreatMgr().GetThreatList();
+        for (ThreatContainer::StorageType::const_iterator itr = targets.begin(); itr != targets.end(); ++itr)
+        {
+            if (Unit* unit = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid()))
+            {
+                if (unit->IsPlayer() && !unit->IsWithinDist(me, tresholddistance, false))
+                {
+                    me->CastSpell(unit, spellid, triggered);
+                }
+            }
+        }
+    }
+
     void TakeOff()
     {
         Talk(YELL_FLY_PHASE);
@@ -304,7 +319,7 @@ struct boss_nightbane : public BossAI
 
             _flying = true;
             scheduler.CancelGroup(GROUP_FLYING);
-            scheduler.Schedule(5s, [this](TaskContext)
+            scheduler.Schedule(2s, [this](TaskContext)
             {
                 //debug
                 me->Yell("I can cast again on the ground!", LANG_UNIVERSAL);
