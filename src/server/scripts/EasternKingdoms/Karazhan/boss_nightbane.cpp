@@ -80,7 +80,7 @@ struct boss_nightbane : public BossAI
         });
         instance = creature->GetInstanceScript();
         _intro = true;
-        _skeletonCount = 3;
+        _skeletonCount = 5;
     }
 
 
@@ -180,7 +180,7 @@ struct boss_nightbane : public BossAI
             //spawns skeletons every second until skeletonCount is reached
             scheduler.Schedule(2s, [this](TaskContext context)
             {
-                if(_skeletonSpawnCounter <= _skeletonCount)
+                if(_skeletonSpawnCounter < _skeletonCount)
                 {
                     DoCastVictim(SPELL_SUMMON_SKELETON);
                     _skeletonSpawnCounter++;
