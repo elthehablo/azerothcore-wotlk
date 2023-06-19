@@ -74,7 +74,6 @@ struct boss_nightbane : public BossAI
 {
     boss_nightbane(Creature* creature) : BossAI(creature, DATA_NIGHTBANE)
     {
-        //SetNoCastValidator();
         instance = creature->GetInstanceScript();
         _intro = true;
         _skeletonCount = 5;
@@ -124,14 +123,6 @@ struct boss_nightbane : public BossAI
 
         ScheduleHealthCheckEvent({25, 50, 70}, [&]{
             TakeOff();
-        });
-    }
-
-    void SetNoCastValidator() 
-    {
-        scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
         });
     }
 
@@ -188,7 +179,7 @@ struct boss_nightbane : public BossAI
     void ScheduleFly() {
         _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(8s, GROUP_FLYING, [this](TaskContext context)
+        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
         {
             //spawns skeletons every second until skeletonCount is reached
             if(_skeletonSpawnCounter < _skeletonCount)
