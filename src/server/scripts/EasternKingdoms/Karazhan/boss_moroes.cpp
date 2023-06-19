@@ -46,8 +46,6 @@ enum Spells
 
 enum Misc
 {
-    EVENT_GUEST_TALK            = 1,
-    EVENT_GUEST_TALK2           = 2,
     EVENT_SPELL_VANISH          = 3,
     EVENT_SPELL_GARROTE         = 4,
     EVENT_SPELL_BLIND           = 5,
@@ -114,19 +112,26 @@ struct boss_moroes : public BossAI
             if ((1 << i) & _activeGuests)
                 me->SummonCreature(GuestEntries[i], GuestsPosition[summons.size()], TEMPSUMMON_MANUAL_DESPAWN);
 
-        _events2.Reset();
+        scheduler.CancelAll();
         _events2.ScheduleEvent(EVENT_GUEST_TALK, 10s);
+        scheduler.Schedule(10s, [this](TaskContext context)
+        {
+            if (Creature* guest = GetRandomGuest())
+                guest->AI()->Talk(SAY_GUEST);
+            context.Repeat(5s);
+        })
     }
 
     void Reset() override
     {
-        BossAI::Reset();
+        _Reset();
+        _recentlySpoken = false;
         DoCastSelf(SPELL_DUAL_WIELD, true);
     }
 
     void JustEngagedWith(Unit* who) override
     {
-        BossAI::JustEngagedWith(who);
+        _JustEngagedWith();
         Talk(SAY_AGGRO);
 
         events.ScheduleEvent(EVENT_SPELL_VANISH, 30s);
@@ -142,16 +147,21 @@ struct boss_moroes : public BossAI
 
     void KilledUnit(Unit* /*victim*/) override
     {
-        if (events.GetNextEventTime(EVENT_KILL_TALK) == 0)
+        if(!_recentlySpoken)
         {
             Talk(SAY_KILL);
-            events.ScheduleEvent(EVENT_KILL_TALK, 5s);
+            _recentlySpoken = true;
         }
+
+        scheduler.Schedule(5s, [this](TaskContext)
+        {
+            _recentlySpoken = false;
+        });
     }
 
     void JustDied(Unit* killer) override
     {
-        BossAI::JustDied(killer);
+        _JustDied();
         Talk(SAY_DEATH);
         instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_GARROTE);
     }
@@ -168,20 +178,6 @@ struct boss_moroes : public BossAI
 
     void UpdateAI(uint32 diff) override
     {
-        _events2.Update(diff);
-        switch (_events2.ExecuteEvent())
-        {
-        case EVENT_GUEST_TALK:
-            if (Creature* guest = GetRandomGuest())
-                guest->AI()->Talk(SAY_GUEST);
-            _events2.Repeat(5s);
-            break;
-        case EVENT_GUEST_TALK2:
-            Talk(SAY_OUT_OF_COMBAT);
-            _events2.Repeat(1min, 2min);
-            break;
-        }
-
         if (!UpdateVictim())
             return;
 
@@ -236,6 +232,7 @@ struct boss_moroes : public BossAI
     private:
         EventMap _events2;
         uint8 _activeGuests;
+        bool _recentlySpoken;
 };
 
 class spell_moroes_vanish : public SpellScriptLoader
