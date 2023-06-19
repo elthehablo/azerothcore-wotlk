@@ -129,8 +129,8 @@ struct boss_nightbane : public BossAI
             instance->HandleGameObject(instance->GetGuidData(DATA_MASTERS_TERRACE_DOOR_2), open);
         }
     }
-
-    void EnterEvadeMode(EvadeReason /*why*/) override
+    /*
+    void EnterEvadeMode(EvadeReason why) override
     {
         if(instance->GetData(DATA_NIGHTBANE) == IN_PROGRESS)
         {
@@ -142,6 +142,7 @@ struct boss_nightbane : public BossAI
             });
         }
     }
+    */
 
     void JustEngagedWith(Unit* /*who*/) override
     {
@@ -187,20 +188,18 @@ struct boss_nightbane : public BossAI
     void ScheduleFly() {
         _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext)
+        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
         {
             //spawns skeletons every second until skeletonCount is reached
-            scheduler.Schedule(2s, GROUP_FLYING, [this](TaskContext context)
+            if(_skeletonSpawnCounter < _skeletonCount)
             {
-                if(_skeletonSpawnCounter < _skeletonCount)
-                {
-                    DoCastVictim(SPELL_SUMMON_SKELETON);
-                    _skeletonSpawnCounter++;
-                }
+                DoCastVictim(SPELL_SUMMON_SKELETON);
+                _skeletonSpawnCounter++;
                 context.Repeat(2s);
-            });
+            }
+        }).Schedule(5s, GROUP_FLYING, [this](TaskContext)
+        {
             DoCastVictim(SPELL_RAIN_OF_BONES);
-            
         }).Schedule(20s, GROUP_FLYING, [this](TaskContext context)
         {
             DoCastRandomTarget(SPELL_DISTRACTING_ASH);
