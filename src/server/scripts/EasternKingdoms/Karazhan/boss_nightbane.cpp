@@ -264,9 +264,10 @@ struct boss_nightbane : public BossAI
         }
     }
 
-    void JustSummoned(Creature* summoned) override
+    void JustSummoned(Creature* summon) override
     {
-        summoned->AI()->AttackStart(me->GetVictim());
+        summon->AI()->AttackStart(me->GetVictim());
+        summons.Summon(summon);
     }
 
     void DoCastOnFarAwayPlayers(uint32 spellid, bool triggered, float tresholddistance)
