@@ -109,8 +109,6 @@ struct boss_nightbane : public BossAI
 
         _flying = false;
         _movement = false;
-        _rainBones = false;
-        _skeletons = false;
 
         if (!_intro)
         {
@@ -174,18 +172,21 @@ struct boss_nightbane : public BossAI
     }
 
     void ScheduleFly() {
-        for (uint8 i = 0; i <= _skeletonCount; ++i)
-        {
-            DoCastVictim(SPELL_SUMMON_SKELETON);
-            _skeletons = true;
-        }
+        _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext context)
+        scheduler.Schedule(5s, GROUP_FLYING, [this](TaskContext)
         {
-            if (!_rainBones) {
-                DoCastVictim(SPELL_RAIN_OF_BONES);
-                _rainBones = true;
-            }
+            DoCastVictim(SPELL_RAIN_OF_BONES);
+            //spawns skeletons every second until skeletonCount is reached
+            scheduler.Schedule(2s, [this](TaskContext context)
+            {
+                if(_skeletonSpawnCounter <= _skeletonCount)
+                {
+                    DoCastVictim(SPELL_SUMMON_SKELETON);
+                    _skeletonSpawnCounter++;
+                }
+                context.Repeat(2s);
+            });
         }).Schedule(20s, GROUP_FLYING, [this](TaskContext context)
         {
             DoCastRandomTarget(SPELL_DISTRACTING_ASH);
@@ -302,8 +303,7 @@ struct boss_nightbane : public BossAI
 
         
         ScheduleFly();
-        _rainBones = false;
-        _skeletons = false;
+
 
         //handle landing again
         scheduler.Schedule(45s, 60s, [this](TaskContext)
@@ -381,8 +381,6 @@ struct boss_nightbane : public BossAI
 private:
     uint32 Phase;
 
-    bool _rainBones;
-    bool _skeletons;
     bool _intro;
     bool _flying;
     bool _movement;
@@ -390,6 +388,7 @@ private:
     uint32 FlyCount;
     uint32 MovePhase;
     uint8 _skeletonCount;
+    uint8 _skeletonSpawnCounter;
 };
 class go_blackened_urn : public GameObjectScript
 {
