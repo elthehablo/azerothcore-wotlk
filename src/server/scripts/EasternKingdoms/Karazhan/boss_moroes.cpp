@@ -26,7 +26,7 @@ enum Yells
     SAY_SPECIAL                 = 1,
     SAY_KILL                    = 2,
     SAY_DEATH                   = 3,
-    SAY_OUT_OF_COMBAT           = 4,
+    SAY_OUT_OF_COMBAT           = 4, //defunct?
 
     SAY_GUEST                   = 0
 };
@@ -46,16 +46,13 @@ enum Spells
 
 enum Misc
 {
-    EVENT_SPELL_VANISH          = 3,
-    EVENT_SPELL_GARROTE         = 4,
-    EVENT_SPELL_BLIND           = 5,
-    EVENT_SPELL_GOUGE           = 6,
-    EVENT_CHECK_HEALTH          = 7,
-    EVENT_SPELL_ENRAGE          = 8,
-    EVENT_KILL_TALK             = 9,
-
     ACTIVE_GUEST_COUNT          = 4,
     MAX_GUEST_COUNT             = 6
+};
+
+enum Groups
+{
+    GROUP_BEFORE_COMBAT         = 0
 };
 
 const Position GuestsPosition[4] =
@@ -81,6 +78,10 @@ struct boss_moroes : public BossAI
     boss_moroes(Creature* creature) : BossAI(creature, DATA_MOROES)
     {
         _activeGuests = 0;
+        scheduler.SetValidator([this]
+        {
+            return !me->HasUnitState(UNIT_STATE_CASTING);
+        });
     }
 
     void InitializeAI() override
@@ -112,21 +113,25 @@ struct boss_moroes : public BossAI
             if ((1 << i) & _activeGuests)
                 me->SummonCreature(GuestEntries[i], GuestsPosition[summons.size()], TEMPSUMMON_MANUAL_DESPAWN);
 
-        scheduler.CancelAll();
-        _events2.ScheduleEvent(EVENT_GUEST_TALK, 10s);
-        scheduler.Schedule(10s, [this](TaskContext context)
+        scheduler.CancelGroup(GROUP_BEFORE_COMBAT);
+        scheduler.Schedule(10s, GROUP_BEFORE_COMBAT, [this](TaskContext context)
         {
             if (Creature* guest = GetRandomGuest())
                 guest->AI()->Talk(SAY_GUEST);
             context.Repeat(5s);
-        })
+        });
     }
 
     void Reset() override
     {
         _Reset();
         _recentlySpoken = false;
+        _currentPhase = 0;
         DoCastSelf(SPELL_DUAL_WIELD, true);
+
+        ScheduleHealthCheckEvent(31, [&]{
+            DoCastSelf(SPELL_FRENZY, true);
+        });
     }
 
     void JustEngagedWith(Unit* who) override
@@ -134,13 +139,37 @@ struct boss_moroes : public BossAI
         _JustEngagedWith();
         Talk(SAY_AGGRO);
 
-        events.ScheduleEvent(EVENT_SPELL_VANISH, 30s);
-        events.ScheduleEvent(EVENT_SPELL_BLIND, 20s);
-        events.ScheduleEvent(EVENT_SPELL_GOUGE, 13s);
-        events.ScheduleEvent(EVENT_CHECK_HEALTH, 5s);
-        events.ScheduleEvent(EVENT_SPELL_ENRAGE, 10min);
 
-        _events2.Reset();
+        scheduler.Schedule(30s, [this](TaskContext context)
+        {
+                scheduler.DelayAll(9s);
+                _currentPhase = 1;
+                DoCastSelf(SPELL_VANISH);
+                context.Repeat(30s);
+                scheduler.Schedule(5s, 7s, [this](TaskContext)
+                {
+                    Talk(SAY_SPECIAL);
+                    DoCastRandomTarget(SPELL_GARROTE, 0, 100.0f, true, true);
+                    DoCastSelf(SPELL_VANISH_TELEPORT);
+                    _currentPhase = 0;
+                });
+        }).Schedule(20s, [this](TaskContext context)
+        {
+            if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 1, 10.0f, true))
+            {
+                DoCast(target, SPELL_BLIND);
+            }
+            context.Repeat(25s, 40s);
+        }).Schedule(13s, [this](TaskContext context)
+        {
+            DoCastVictim(SPELL_GOUGE);
+            context.Repeat(25s, 40s);
+        }).Schedule(10min, [this](TaskContext)
+        {
+            DoCastSelf(SPELL_BERSERK, true);
+        });
+
+        scheduler.CancelGroup(GROUP_BEFORE_COMBAT);
         me->CallForHelp(20.0f);
         DoZoneInCombat();
     }
@@ -181,58 +210,17 @@ struct boss_moroes : public BossAI
         if (!UpdateVictim())
             return;
 
-        events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        switch (events.ExecuteEvent())
-        {
-            case EVENT_CHECK_HEALTH:
-                if (me->HealthBelowPct(31))
-                {
-                    DoCastSelf(SPELL_FRENZY, true);
-                    break;
-                }
-                events.Repeat(1s);
-                break;
-            case EVENT_SPELL_ENRAGE:
-                DoCastSelf(SPELL_BERSERK, true);
-                break;
-            case EVENT_SPELL_BLIND:
-                if (Unit* target = SelectTarget(SelectTargetMethod::MaxThreat, 1, 10.0f, true))
-                {
-                    DoCast(target, SPELL_BLIND);
-                }
-                events.Repeat(25s, 40s);
-                break;
-            case EVENT_SPELL_GOUGE:
-                DoCastVictim(SPELL_GOUGE);
-                events.Repeat(25s, 40s);
-                return;
-            case EVENT_SPELL_VANISH:
-                events.DelayEvents(9s);
-                events.SetPhase(1);
-                DoCastSelf(SPELL_VANISH);
-                events.Repeat(30s);
-                events.ScheduleEvent(EVENT_SPELL_GARROTE, 5s, 7s);
-                return;
-            case EVENT_SPELL_GARROTE:
-                Talk(SAY_SPECIAL);
-                DoCastRandomTarget(SPELL_GARROTE, 0, 100.0f, true, true);
-                DoCastSelf(SPELL_VANISH_TELEPORT);
-                events.SetPhase(0);
-                break;
-        }
+        scheduler.Update(diff);
 
         // Xinef: not in vanish
-        if (events.GetPhaseMask() == 0)
+        if (_currentPhase == 0)
             DoMeleeAttackIfReady();
     }
 
     private:
-        EventMap _events2;
         uint8 _activeGuests;
         bool _recentlySpoken;
+        uint8 _currentPhase;
 };
 
 class spell_moroes_vanish : public SpellScriptLoader
