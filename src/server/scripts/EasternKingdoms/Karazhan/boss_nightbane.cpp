@@ -91,6 +91,7 @@ struct boss_nightbane : public BossAI
         _Reset();
         Phase = 1;
         MovePhase = 0;
+        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
 
         me->SetSpeed(MOVE_RUN, 2.0f);
         me->SetDisableGravity(_intro);
@@ -238,6 +239,11 @@ struct boss_nightbane : public BossAI
             ScriptedAI::MoveInLineOfSight(who);
     }
 
+    void JustReachedHome() override
+    {
+        me->Yell("I reached home. I can despawn", LANG_UNIVERSAL);
+    }
+
     void MovementInform(uint32 type, uint32 id) override
     {
         if (type != POINT_MOTION_TYPE)
@@ -249,6 +255,7 @@ struct boss_nightbane : public BossAI
             {
                 _intro = false;
                 me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
+                me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 me->SetInCombatWithZone();
                 return;
             }
