@@ -235,6 +235,7 @@ struct boss_nightbane : public BossAI
             {
                 _intro = false;
                 me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
+                me->SetInCombatWithZone();
                 return;
             }
 
