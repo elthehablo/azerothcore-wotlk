@@ -110,8 +110,12 @@ struct boss_nightbane : public BossAI
 
         if (!_intro)
         {
-            me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
-            me->DespawnOrUnsummon();
+            //when boss is reset and we're past the intro
+            //cannot despawn, but have to move to a location where he normally is
+            //me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
+            Position preSpawnPosis = me->GetHomePosition();
+            me->NearTeleportTo(preSpawnPosis);
+            
         }
 
         ScheduleHealthCheckEvent({25, 50, 70}, [&]{
@@ -180,7 +184,7 @@ struct boss_nightbane : public BossAI
     void ScheduleFly() {
         _skeletonSpawnCounter = 0;
 
-        scheduler.Schedule(7s, GROUP_FLYING, [this](TaskContext context)
+        scheduler.Schedule(3s, GROUP_FLYING, [this](TaskContext context)
         {
             //spawns skeletons every second until skeletonCount is reached
             scheduler.ClearValidator();
@@ -237,11 +241,6 @@ struct boss_nightbane : public BossAI
             ScriptedAI::MoveInLineOfSight(who);
     }
 
-    //void JustReachedHome() override
-    //{
-    //    me->DespawnOrUnsummon();
-    //}
-
     void MovementInform(uint32 type, uint32 id) override
     {
         if (type != POINT_MOTION_TYPE)
@@ -252,7 +251,8 @@ struct boss_nightbane : public BossAI
             if (id >= 8)
             {
                 _intro = false;
-                me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
+                //me->SetHomePosition(IntroWay[7][0], IntroWay[7][1], IntroWay[7][2], 0);
+                //doesn't need home position because we have to "despawn" boss on reset
                 me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 me->SetInCombatWithZone();
                 return;
