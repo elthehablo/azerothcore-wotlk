@@ -160,7 +160,7 @@ struct boss_dorothee : public ScriptedAI
             context.Repeat(1500ms);
         }).Schedule(15s, [this](TaskContext context)
         {
-            DoCastVictim(SPELL_SCREAM);
+            DoCastSelf(SPELL_SCREAM);
             context.Repeat(30s);
         }).Schedule(41s, [this](TaskContext)
         {
@@ -365,7 +365,8 @@ struct boss_roar : public ScriptedAI
             context.Repeat(10s, 15s);
         }).Schedule(15s, [this](TaskContext context)
         {
-            DoCastVictim(SPELL_FRIGHTENED_SCREAM);
+            //why is this also on roar??? same id
+            DoCastSelf(SPELL_FRIGHTENED_SCREAM);
             context.Repeat(20s, 30s);
         });
     }
@@ -740,10 +741,9 @@ enum RedRidingHood
 
 #define GOSSIP_GRANDMA          "What phat lewtz you have grandmother?"
 
-class npc_grandmother : public CreatureScript
+struct npc_grandmother : public ScriptedAI
 {
-public:
-    npc_grandmother() : CreatureScript("npc_grandmother") { }
+    npc_grandmother(Creature* creature) : ScriptedAI(creature) { }
 
     bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
     {
@@ -768,139 +768,121 @@ public:
     }
 };
 
-class boss_bigbadwolf : public CreatureScript
+struct boss_bigbadwolf : public ScriptedAI
 {
-public:
-    boss_bigbadwolf() : CreatureScript("boss_bigbadwolf") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_bigbadwolfAI>(creature);
+    boss_bigbadwolf(Creature* creature) : CreatureScript(creature)
+    { 
+        instance = creature->GetInstanceScript();
     }
 
-    struct boss_bigbadwolfAI : public ScriptedAI
+    InstanceScript* instance;
+
+    uint32 ChaseTimer;
+    uint32 FearTimer;
+    uint32 SwipeTimer;
+
+    ObjectGuid HoodGUID;
+
+    void Reset() override
     {
-        boss_bigbadwolfAI(Creature* creature) : ScriptedAI(creature)
+        HoodGUID.Clear();
+        _tempThreat = 0;
+
+        _isChasing = false;
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        Talk(SAY_WOLF_AGGRO);
+        DoZoneInCombat();
+
+        _scheduler.Schedule(30s, [this](TaskContext context)
         {
-            instance = creature->GetInstanceScript();
-        }
-
-        InstanceScript* instance;
-
-        uint32 ChaseTimer;
-        uint32 FearTimer;
-        uint32 SwipeTimer;
-
-        ObjectGuid HoodGUID;
-        float TempThreat;
-
-        bool IsChasing;
-
-        void Reset() override
-        {
-            ChaseTimer = 30000;
-            FearTimer = urand(25000, 35000);
-            SwipeTimer = 5000;
-
-            HoodGUID.Clear();
-            TempThreat = 0;
-
-            IsChasing = false;
-        }
-
-        void JustEngagedWith(Unit* /*who*/) override
-        {
-            Talk(SAY_WOLF_AGGRO);
-            DoZoneInCombat();
-        }
-
-        void KilledUnit(Unit* /*victim*/) override
-        {
-            Talk(SAY_WOLF_SLAY);
-        }
-
-        void JustReachedHome() override
-        {
-            me->DespawnOrUnsummon();
-        }
-
-        void EnterEvadeMode(EvadeReason reason) override
-        {
-            ScriptedAI::EnterEvadeMode(reason);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
-        }
-
-        void JustDied(Unit* /*killer*/) override
-        {
-            DoPlaySoundToSet(me, SOUND_WOLF_DEATH);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            if (!UpdateVictim())
-                return;
-
-            DoMeleeAttackIfReady();
-
-            if (ChaseTimer <= diff)
+            if (!_isChasing)
             {
-                if (!IsChasing)
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
                 {
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
+                    Talk(SAY_WOLF_HOOD);
+                    DoCast(target, SPELL_LITTLE_RED_RIDING_HOOD, true);
+                    _tempThreat = DoGetThreat(target);
+                    if(_tempThreat)
                     {
-                        Talk(SAY_WOLF_HOOD);
-                        DoCast(target, SPELL_LITTLE_RED_RIDING_HOOD, true);
-                        TempThreat = DoGetThreat(target);
-                        if (TempThreat)
-                            DoModifyThreatByPercent(target, -100);
-                        HoodGUID = target->GetGUID();
-                        me->AddThreat(target, 1000000.0f);
-                        ChaseTimer = 20000;
-                        IsChasing = true;
+                        DoModifyThreatByPercent(target, -100);
                     }
-                }
-                else
-                {
-                    IsChasing = false;
-
-                    if (Unit* target = ObjectAccessor::GetUnit(*me, HoodGUID))
-                    {
-                        HoodGUID.Clear();
-                        if (DoGetThreat(target))
-                            DoModifyThreatByPercent(target, -100);
-                        me->AddThreat(target, TempThreat);
-                        TempThreat = 0;
-                    }
-
-                    ChaseTimer = 40000;
+                    HoodGUID = target->GetGUID();
+                    me->AddThreat(target, 1000000.0f);
+                    _isChasing = true;
+                    context.Repeat(20s);
                 }
             }
             else
-                ChaseTimer -= diff;
-
-            if (IsChasing)
-                return;
-
-            if (FearTimer <= diff)
             {
-                DoCastVictim(SPELL_TERRIFYING_HOWL);
-                FearTimer = urand(25000, 35000);
-            }
-            else
-                FearTimer -= diff;
+                _isChasing = false;
 
-            if (SwipeTimer <= diff)
-            {
-                DoCastVictim(SPELL_WIDE_SWIPE);
-                SwipeTimer = urand(25000, 30000);
+                if (Unit* target = ObjectAccessor::GetUnit(*me, HoodGUID))
+                {
+                    HoodGUID.Clear();
+                    if (DoGetThreat(target))
+                    {
+                        DoModifyThreatByPercent(target, -100);
+                    }
+                    me->AddThreat(target, _tempThreat);
+                    _tempThreat = 0;
+                }
+
+                context.Repeat(40s);
             }
-            else
-                SwipeTimer -= diff;
-        }
-    };
+        }).Schedule(25s, 35s, [this](TaskContext context)
+        {
+            DoCastAOE(SPELL_TERRIFYING_HOWL);
+            context.Repeat(25s, 35s);
+        }).Schedule(5s, [this](TaskContext context)
+        {
+            DoCastVictim(SPELL_WIDE_SWIPE);
+            context.Repeat(25s, 30s);
+        });
+    }
+
+    void KilledUnit(Unit* /*victim*/) override
+    {
+        Talk(SAY_WOLF_SLAY);
+    }
+
+    void JustReachedHome() override
+    {
+        me->DespawnOrUnsummon();
+    }
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        ScriptedAI::EnterEvadeMode(reason);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        DoPlaySoundToSet(me, SOUND_WOLF_DEATH);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
+
+        if (_isChasing)
+            return;
+
+        _scheduler.Update(diff);
+    }
+private:
+    TaskScheduler _scheduler;
+    bool _isChasing;
+    float _tempThreat;
 };
 
 /**********************************************/
