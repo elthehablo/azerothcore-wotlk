@@ -617,7 +617,7 @@ private:
 
 struct boss_crone : public ScriptedAI
 {
-    boss_crone(Creature* creature) : CreatureScript(creature)
+    boss_crone(Creature* creature) : ScriptedAI(creature)
     {
         instance = creature->GetInstanceScript();
     }
@@ -770,7 +770,7 @@ struct npc_grandmother : public ScriptedAI
 
 struct boss_bigbadwolf : public ScriptedAI
 {
-    boss_bigbadwolf(Creature* creature) : CreatureScript(creature)
+    boss_bigbadwolf(Creature* creature) : ScriptedAI(creature)
     { 
         instance = creature->GetInstanceScript();
     }
