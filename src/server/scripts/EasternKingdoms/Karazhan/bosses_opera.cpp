@@ -957,551 +957,437 @@ void Resurrect(Creature* target)
         target->GetMotionMaster()->Initialize();
 }
 
-class boss_julianne : public CreatureScript
+struct boss_julianne : public ScriptedAI
 {
-public:
-    boss_julianne() : CreatureScript("boss_julianne") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
+    boss_julianne(Creature* creature) : ScriptedAI(creature)
     {
-        return GetKarazhanAI<boss_julianneAI>(creature);
+        instance = creature->GetInstanceScript();
+        IsFakingDeath = false;
     }
 
-    struct boss_julianneAI : public ScriptedAI
+    InstanceScript* instance;
+
+    ObjectGuid RomuloGUID;
+
+    uint32 Phase;
+
+    bool IsFakingDeath;
+    bool SummonedRomulo;
+    bool RomuloDead;
+
+    void Reset() override
     {
-        boss_julianneAI(Creature* creature) : ScriptedAI(creature)
-        {
-            instance = creature->GetInstanceScript();
-            EntryYellTimer = 1000;
-            AggroYellTimer = 10000;
-            IsFakingDeath = false;
-        }
+        RomuloGUID.Clear();
+        Phase = PHASE_JULIANNE;
 
-        InstanceScript* instance;
-
-        uint32 EntryYellTimer;
-        uint32 AggroYellTimer;
-
-        ObjectGuid RomuloGUID;
-
-        uint32 Phase;
-
-        uint32 BlindingPassionTimer;
-        uint32 DevotionTimer;
-        uint32 EternalAffectionTimer;
-        uint32 PowerfulAttractionTimer;
-        uint32 SummonRomuloTimer;
-        uint32 ResurrectTimer;
-        uint32 DrinkPoisonTimer;
-        uint32 ResurrectSelfTimer;
-
-        bool IsFakingDeath;
-        bool SummonedRomulo;
-        bool RomuloDead;
-
-        void Reset() override
-        {
-            RomuloGUID.Clear();
-            Phase = PHASE_JULIANNE;
-
-            BlindingPassionTimer = 30000;
-            DevotionTimer = 15000;
-            EternalAffectionTimer = 25000;
-            PowerfulAttractionTimer = 5000;
-            SummonRomuloTimer = 10000;
-            DrinkPoisonTimer = 0;
-            ResurrectSelfTimer = 0;
-
-            if (IsFakingDeath)
-            {
-                Resurrect(me);
-                IsFakingDeath = false;
-            }
-
-            SummonedRomulo = false;
-            RomuloDead = false;
-        }
-
-        void JustEngagedWith(Unit* /*who*/) override
-        {
-            DoZoneInCombat();
-        }
-
-        void AttackStart(Unit* who) override
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::AttackStart(who);
-        }
-
-        void MoveInLineOfSight(Unit* who) override
-
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::MoveInLineOfSight(who);
-        }
-
-        void JustReachedHome() override
-        {
-            me->DespawnOrUnsummon();
-        }
-
-        void SpellHit(Unit* /*caster*/, SpellInfo const* Spell) override
-        {
-            if (Spell->Id == SPELL_DRINK_POISON)
-            {
-                Talk(SAY_JULIANNE_DEATH01);
-                DrinkPoisonTimer = 2500;
-            }
-        }
-
-        void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override;
-
-        void EnterEvadeMode(EvadeReason reason) override
-        {
-            ScriptedAI::EnterEvadeMode(reason);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
-        }
-
-        void JustDied(Unit*) override
-        {
-            Talk(SAY_JULIANNE_DEATH02);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
-        }
-
-        void KilledUnit(Unit* /*victim*/) override
-        {
-            Talk(SAY_JULIANNE_SLAY);
-        }
-
-        void UpdateAI(uint32 diff) override;
-    };
-};
-
-class boss_romulo : public CreatureScript
-{
-public:
-    boss_romulo() : CreatureScript("boss_romulo") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_romuloAI>(creature);
-    }
-
-    struct boss_romuloAI : public ScriptedAI
-    {
-        boss_romuloAI(Creature* creature) : ScriptedAI(creature)
-        {
-            instance = creature->GetInstanceScript();
-            EntryYellTimer = 8000;
-            AggroYellTimer = 15000;
-        }
-
-        InstanceScript* instance;
-
-        ObjectGuid JulianneGUID;
-        uint32 Phase;
-
-        uint32 EntryYellTimer;
-        uint32 AggroYellTimer;
-        uint32 BackwardLungeTimer;
-        uint32 DaringTimer;
-        uint32 DeadlySwatheTimer;
-        uint32 PoisonThrustTimer;
-        uint32 ResurrectTimer;
-
-        bool IsFakingDeath;
-        bool JulianneDead;
-
-        void Reset() override
-        {
-            JulianneGUID.Clear();
-            Phase = PHASE_ROMULO;
-
-            BackwardLungeTimer = 15000;
-            DaringTimer = 20000;
-            DeadlySwatheTimer = 25000;
-            PoisonThrustTimer = 10000;
-            ResurrectTimer = 10000;
-
-            IsFakingDeath = false;
-            JulianneDead = false;
-        }
-
-        void JustReachedHome() override
-        {
-            me->DespawnOrUnsummon();
-        }
-
-        void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
-        {
-            if (damage < me->GetHealth())
-                return;
-
-            //anything below only used if incoming damage will kill
-
-            if (Phase == PHASE_ROMULO)
-            {
-                Talk(SAY_ROMULO_DEATH);
-                PretendToDie(me);
-                IsFakingDeath = true;
-                Phase = PHASE_BOTH;
-
-                if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
-                {
-                    CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->RomuloDead = true;
-                    CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->ResurrectSelfTimer = 10000;
-                }
-
-                damage = 0;
-                return;
-            }
-
-            if (Phase == PHASE_BOTH)
-            {
-                if (JulianneDead)
-                {
-                    if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
-                    {
-                        Julianne->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        Julianne->GetMotionMaster()->Clear();
-                        Julianne->setDeathState(JUST_DIED);
-                        Julianne->CombatStop(true);
-                        Julianne->GetThreatMgr().ClearAllThreat();
-                        Julianne->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
-                    }
-                    return;
-                }
-
-                if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
-                {
-                    PretendToDie(me);
-                    IsFakingDeath = true;
-                    CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->ResurrectTimer = 10000;
-                    CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->RomuloDead = true;
-                    damage = 0;
-                    return;
-                }
-            }
-
-            //LOG_ERROR("scripts", "boss_romuloAI: DamageTaken reach end of code, that should not happen.");
-        }
-
-        void JustEngagedWith(Unit* /*who*/) override
-        {
-            DoZoneInCombat();
-            Talk(SAY_ROMULO_AGGRO);
-            if (JulianneGUID)
-            {
-                Creature* Julianne = ObjectAccessor::GetCreature(*me, JulianneGUID);
-                if (Julianne && Julianne->GetVictim())
-                {
-                    me->AddThreat(Julianne->GetVictim(), 1.0f);
-                    AttackStart(Julianne->GetVictim());
-                }
-            }
-        }
-
-        void MoveInLineOfSight(Unit* who) override
-
-        {
-            if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
-                return;
-
-            ScriptedAI::MoveInLineOfSight(who);
-        }
-
-        void EnterEvadeMode(EvadeReason reason) override
-        {
-            ScriptedAI::EnterEvadeMode(reason);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
-        }
-
-        void JustDied(Unit* /*killer*/) override
-        {
-            Talk(SAY_ROMULO_DEATH);
-
-            instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
-        }
-
-        void KilledUnit(Unit* /*victim*/) override
-        {
-            Talk(SAY_ROMULO_SLAY);
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            if (!UpdateVictim() || IsFakingDeath)
-                return;
-
-            if (JulianneDead)
-            {
-                if (ResurrectTimer <= diff)
-                {
-                    Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID));
-                    if (Julianne && CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->IsFakingDeath)
-                    {
-                        Talk(SAY_ROMULO_RESURRECT);
-                        Resurrect(Julianne);
-                        CAST_AI(boss_julianne::boss_julianneAI, Julianne->AI())->IsFakingDeath = false;
-                        JulianneDead = false;
-                        ResurrectTimer = 10000;
-                    }
-                }
-                else
-                    ResurrectTimer -= diff;
-            }
-
-            if (BackwardLungeTimer <= diff)
-            {
-                Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100, true);
-                if (target && !me->HasInArc(M_PI, target))
-                {
-                    DoCast(target, SPELL_BACKWARD_LUNGE);
-                    BackwardLungeTimer = urand(15000, 30000);
-                }
-            }
-            else
-                BackwardLungeTimer -= diff;
-
-            if (DaringTimer <= diff)
-            {
-                DoCast(me, SPELL_DARING);
-                DaringTimer = urand(20000, 40000);
-            }
-            else
-                DaringTimer -= diff;
-
-            if (DeadlySwatheTimer <= diff)
-            {
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
-                    DoCast(target, SPELL_DEADLY_SWATHE);
-                DeadlySwatheTimer = urand(15000, 25000);
-            }
-            else
-                DeadlySwatheTimer -= diff;
-
-            if (PoisonThrustTimer <= diff)
-            {
-                DoCastVictim(SPELL_POISON_THRUST);
-                PoisonThrustTimer = urand(10000, 20000);
-            }
-            else
-                PoisonThrustTimer -= diff;
-
-            DoMeleeAttackIfReady();
-        }
-    };
-};
-
-void boss_julianne::boss_julianneAI::UpdateAI(uint32 diff)
-{
-    if (EntryYellTimer)
-    {
-        if (EntryYellTimer <= diff)
-        {
-            Talk(SAY_JULIANNE_ENTER);
-            EntryYellTimer = 0;
-        }
-        else
-            EntryYellTimer -= diff;
-    }
-
-    if (AggroYellTimer)
-    {
-        if (AggroYellTimer <= diff)
-        {
-            Talk(SAY_JULIANNE_AGGRO);
-            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-            me->SetFaction(FACTION_MONSTER_2);
-            AggroYellTimer = 0;
-        }
-        else
-            AggroYellTimer -= diff;
-    }
-
-    if (DrinkPoisonTimer)
-    {
-        //will do this 2secs after spell hit. this is time to display visual as expected
-        if (DrinkPoisonTimer <= diff)
-        {
-            PretendToDie(me);
-            Phase = PHASE_ROMULO;
-            SummonRomuloTimer = 10000;
-            DrinkPoisonTimer = 0;
-        }
-        else
-            DrinkPoisonTimer -= diff;
-    }
-
-    if (Phase == PHASE_ROMULO && !SummonedRomulo)
-    {
-        if (SummonRomuloTimer <= diff)
-        {
-            if (Creature* pRomulo = me->SummonCreature(CREATURE_ROMULO, ROMULO_X, ROMULO_Y, me->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, HOUR * 2 * IN_MILLISECONDS))
-            {
-                RomuloGUID = pRomulo->GetGUID();
-                CAST_AI(boss_romulo::boss_romuloAI, pRomulo->AI())->JulianneGUID = me->GetGUID();
-                CAST_AI(boss_romulo::boss_romuloAI, pRomulo->AI())->Phase = PHASE_ROMULO;
-                DoZoneInCombat(pRomulo);
-
-                pRomulo->SetFaction(FACTION_MONSTER_2);
-            }
-            SummonedRomulo = true;
-        }
-        else
-            SummonRomuloTimer -= diff;
-    }
-
-    if (ResurrectSelfTimer)
-    {
-        if (ResurrectSelfTimer <= diff)
+        if (IsFakingDeath)
         {
             Resurrect(me);
-            Phase = PHASE_BOTH;
             IsFakingDeath = false;
-
-            if (me->GetVictim())
-                AttackStart(me->GetVictim());
-
-            ResurrectSelfTimer = 0;
-            ResurrectTimer = 1000;
         }
-        else
-            ResurrectSelfTimer -= diff;
+
+        _introStarted = false;
+        SummonedRomulo = false;
+        RomuloDead = false;
     }
 
-    if (!UpdateVictim() || IsFakingDeath)
-        return;
-
-    if (RomuloDead)
+    void JustEngagedWith(Unit* /*who*/) override
     {
-        if (ResurrectTimer <= diff)
+        DoZoneInCombat();
+
+        _scheduler.Schedule(30s, [this](TaskContext context)
         {
-            Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID));
-            if (Romulo && CAST_AI(boss_romulo::boss_romuloAI, Romulo->AI())->IsFakingDeath)
+            DoCastRandomTarget(SPELL_BLINDING_PASSION);
+            context.Repeat(30s, 45s);
+        }).Schedule(15s, [this](TaskContext context)
+        {
+            DoCastSelf(SPELL_DEVOTION);
+            context.Repeat(15s, 45s);
+        }).Schedule(5s, [this](TaskContext context)
+        {
+            DoCastRandomTarget(SPELL_POWERFUL_ATTRACTION);
+            context.Repeat(5s, 30s);
+        }).Schedule(25s, [this](TaskContext context)
+        {
+            if(urand(0, 1) && SummonedRomulo)
             {
-                Talk(SAY_JULIANNE_RESURRECT);
-                Resurrect(Romulo);
-                CAST_AI(boss_romulo::boss_romuloAI, Romulo->AI())->IsFakingDeath = false;
-                RomuloDead = false;
-                ResurrectTimer = 10000;
+                Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID));
+                if (Romulo && Romulo->IsAlive() && !RomuloDead)
+                {
+                    DoCast(Romulo, SPELL_ETERNAL_AFFECTION);
+                }
             }
-        }
-        else
-            ResurrectTimer -= diff;
+            else
+            {
+                DoCast(me, SPELL_ETERNAL_AFFECTION);
+            }
+            context.Repeat(45s, 60s);
+        });
     }
 
-    if (BlindingPassionTimer <= diff)
+    void AttackStart(Unit* who) override
     {
-        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true))
-            DoCast(target, SPELL_BLINDING_PASSION);
-        BlindingPassionTimer = urand(30000, 45000);
-    }
-    else
-        BlindingPassionTimer -= diff;
-
-    if (DevotionTimer <= diff)
-    {
-        DoCast(me, SPELL_DEVOTION);
-        DevotionTimer = urand(15000, 45000);
-    }
-    else
-        DevotionTimer -= diff;
-
-    if (PowerfulAttractionTimer <= diff)
-    {
-        DoCast(SelectTarget(SelectTargetMethod::Random, 0), SPELL_POWERFUL_ATTRACTION);
-        PowerfulAttractionTimer = urand(5000, 30000);
-    }
-    else
-        PowerfulAttractionTimer -= diff;
-
-    if (EternalAffectionTimer <= diff)
-    {
-        if (urand(0, 1) && SummonedRomulo)
-        {
-            Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID));
-            if (Romulo && Romulo->IsAlive() && !RomuloDead)
-                DoCast(Romulo, SPELL_ETERNAL_AFFECTION);
-        }
-        else DoCast(me, SPELL_ETERNAL_AFFECTION);
-
-        EternalAffectionTimer = urand(45000, 60000);
-    }
-    else
-        EternalAffectionTimer -= diff;
-
-    DoMeleeAttackIfReady();
-}
-
-void boss_julianne::boss_julianneAI::DamageTaken(Unit* /*done_by*/, uint32& damage, DamageEffectType, SpellSchoolMask)
-{
-    if (damage < me->GetHealth())
-        return;
-
-    //anything below only used if incoming damage will kill
-
-    if (Phase == PHASE_JULIANNE)
-    {
-        damage = 0;
-
-        //this means already drinking, so return
-        if (IsFakingDeath)
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
             return;
 
-        me->InterruptNonMeleeSpells(true);
-        DoCast(me, SPELL_DRINK_POISON);
-
-        IsFakingDeath = true;
-        //IS THIS USEFULL? Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID));
-        return;
+        ScriptedAI::AttackStart(who);
     }
 
-    if (Phase == PHASE_ROMULO)
-    {
-        //LOG_ERROR("scripts", "boss_julianneAI: cannot take damage in PHASE_ROMULO, why was i here?");
-        damage = 0;
-        return;
-    }
+    void MoveInLineOfSight(Unit* who) override
 
-    if (Phase == PHASE_BOTH)
     {
-        //if this is true then we have to kill romulo too
-        if (RomuloDead)
-        {
-            if (Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID)))
-            {
-                Romulo->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                Romulo->GetMotionMaster()->Clear();
-                Romulo->setDeathState(JUST_DIED);
-                Romulo->CombatStop(true);
-                Romulo->GetThreatMgr().ClearAllThreat();
-                Romulo->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
-            }
-
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
             return;
-        }
 
-        //if not already returned, then romulo is alive and we can pretend die
-        if (Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID)))
+        ScriptedAI::MoveInLineOfSight(who);
+    }
+
+    void JustReachedHome() override
+    {
+        me->DespawnOrUnsummon();
+    }
+
+    void SpellHit(Unit* /*caster*/, SpellInfo const* Spell) override
+    {
+        if (Spell->Id == SPELL_DRINK_POISON)
         {
-            PretendToDie(me);
+            Talk(SAY_JULIANNE_DEATH01);
+            _scheduler.Schedule(2500ms, [this](TaskContext)
+            {
+                //will do this 2secs after spell hit. this is time to display visual as expected
+                PretendToDie(me);
+                Phase = PHASE_ROMULO;
+                _scheduler.Schedule(10s, [this](TaskContext)
+                {
+                    if (Creature* pRomulo = me->SummonCreature(CREATURE_ROMULO, ROMULO_X, ROMULO_Y, me->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, HOUR * 2 * IN_MILLISECONDS))
+                    {
+                        RomuloGUID = pRomulo->GetGUID();
+                        CAST_AI(boss_romulo, pRomulu-AI())->JulianneGUID = me->GetGUID();
+                        CAST_AI(boss_romulo, pRomulo->AI())->Phase = PHASE_ROMULO;
+                        DoZoneInCombat(pRomulo);
+                        pRomulo->SetFaction(FACTION_MONSTER_2);
+                    }
+                    SummonedRomulo = true;
+                });
+            });
+        }
+    }
+
+    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        if (damage < me->GetHealth())
+        return;
+
+        //anything below only used if incoming damage will kill
+
+        if (Phase == PHASE_JULIANNE)
+        {
+            damage = 0;
+
+            //this means already drinking, so return
+            if (IsFakingDeath)
+                return;
+
+            me->InterruptNonMeleeSpells(true);
+            DoCast(me, SPELL_DRINK_POISON);
+
             IsFakingDeath = true;
-            CAST_AI(boss_romulo::boss_romuloAI, Romulo->AI())->ResurrectTimer = 10000;
-            CAST_AI(boss_romulo::boss_romuloAI, Romulo->AI())->JulianneDead = true;
+            //IS THIS USEFULL? Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID));
+            return;
+        }
+
+        if (Phase == PHASE_ROMULO)
+        {
+            //LOG_ERROR("scripts", "boss_julianneAI: cannot take damage in PHASE_ROMULO, why was i here?");
             damage = 0;
             return;
         }
+
+        if (Phase == PHASE_BOTH)
+        {
+            //if this is true then we have to kill romulo too
+            if (RomuloDead)
+            {
+                if (Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID)))
+                {
+                    Romulo->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    Romulo->GetMotionMaster()->Clear();
+                    Romulo->setDeathState(JUST_DIED);
+                    Romulo->CombatStop(true);
+                    Romulo->GetThreatMgr().ClearAllThreat();
+                    Romulo->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
+                    //handle self lootable too
+                    me->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
+                }
+
+                return;
+            }
+
+            //if not already returned, then romulo is alive and we can pretend die
+            if (Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID)))
+            {
+                PretendToDie(me);
+                IsFakingDeath = true;
+                CAST_AI(boss_romulo, Romulo->AI())->ResurrectTimer = 10000;
+                CAST_AI(boss_romulo, Romulo->AI())->JulianneDead = true;
+                damage = 0;
+                return;
+            }
+        }
+        //LOG_ERROR("scripts", "boss_julianneAI: DamageTaken reach end of code, that should not happen.");
     }
-    //LOG_ERROR("scripts", "boss_julianneAI: DamageTaken reach end of code, that should not happen.");
-}
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        ScriptedAI::EnterEvadeMode(reason);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
+    }
+
+    void JustDied(Unit*) override
+    {
+        Talk(SAY_JULIANNE_DEATH02);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
+    }
+
+    void KilledUnit(Unit* /*victim*/) override
+    {
+        Talk(SAY_JULIANNE_SLAY);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if(!_introStarted)
+        {
+            _introStarted = true;
+            scheduler.Schedule(1s, [this](TaskContext)
+            {
+                Talk(SAY_JULIANNE_ENTER);
+            }).Schedule(10s, [this](TaskContext)
+            {
+                Talk(SAY_JULIANNE_AGGRO);
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                me->SetFaction(FACTION_MONSTER_2);
+            });
+        }
+
+        if (RomuloDead && Phase = PHASE_BOTH)
+        {
+            _scheduler.Scheduler(1s, [this](TaskContext)
+            {
+                Creature* Romulo = (ObjectAccessor::GetCreature((*me), RomuloGUID));
+                if (Romulo && CAST_AI(boss_romulo, Romulo->AI())->IsFakingDeath)
+                {
+                    Talk(SAY_JULIANNE_RESURRECT);
+                    Resurrect(Romulo);
+                    CAST_AI(boss_romulo, Romulo->AI())->IsFakingDeath = false;
+                    RomuloDead = false;
+                }
+            });
+        }
+
+        _scheduler.Update(diff);
+
+        DoMeleeAttackIfReady();
+    }
+private:
+    TaskScheduler _scheduler;
+    bool _introStarted;
+};
+
+struct boss_romulo : public ScriptedAI
+{
+    boss_romulo(Creature* creature) : ScriptedAI(creature)
+    {
+        instance = creature->GetInstanceScript(); //not necessary
+        //the following have no use???
+        EntryYellTimer = 8000;
+        AggroYellTimer = 15000;
+    }
+
+    InstanceScript* instance;
+
+    ObjectGuid JulianneGUID;
+    uint32 Phase;
+
+    bool IsFakingDeath;
+    bool JulianneDead;
+
+    void Reset() override
+    {
+        JulianneGUID.Clear();
+        Phase = PHASE_ROMULO;
+
+        IsFakingDeath = false;
+        JulianneDead = false;
+    }
+
+    void JustReachedHome() override
+    {
+        me->DespawnOrUnsummon();
+    }
+
+    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        if (damage < me->GetHealth())
+            return;
+
+        //anything below only used if incoming damage will kill
+
+        if (Phase == PHASE_ROMULO)
+        {
+            Talk(SAY_ROMULO_DEATH);
+            PretendToDie(me);
+            IsFakingDeath = true;
+            Phase = PHASE_BOTH;
+
+            if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
+            {
+                CAST_AI(boss_julianne, Julianne->AI())->RomuloDead = true;
+                //resurrect julianne
+                _scheduler.Schedule(10s, [this](TaskContext)
+                {
+                    Resurrect(Julianne);
+                    CAST_AI(boss_julianne, Julianne->AI())->Phase = PHASE_BOTH;
+                    CAST_AI(boss_julianne, Julianne->AI())->IsFakingDeath = false;
+
+                    if(Julianne->GetVictim())
+                    {
+                        AttackStart(Julianne->GetVictim());
+                    }
+                });
+            }
+
+            damage = 0;
+            return;
+        }
+
+        if (Phase == PHASE_BOTH)
+        {
+            if (JulianneDead)
+            {
+                if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
+                {
+                    Julianne->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    Julianne->GetMotionMaster()->Clear();
+                    Julianne->setDeathState(JUST_DIED);
+                    Julianne->CombatStop(true);
+                    Julianne->GetThreatMgr().ClearAllThreat();
+                    Julianne->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
+                    //handle self lootable too
+                    me->ReplaceAllDynamicFlags(UNIT_DYNFLAG_LOOTABLE);
+                }
+                return;
+            }
+
+            if (Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID)))
+            {
+                PretendToDie(me);
+                IsFakingDeath = true;
+                CAST_AI(boss_julianne, Julianne->AI())->ResurrectTimer = 10000;
+                CAST_AI(boss_julianne, Julianne->AI())->RomuloDead = true;
+                damage = 0;
+                return;
+            }
+        }
+
+        //LOG_ERROR("scripts", "boss_romuloAI: DamageTaken reach end of code, that should not happen.");
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override
+    {
+        DoZoneInCombat();
+        Talk(SAY_ROMULO_AGGRO);
+        if (JulianneGUID)
+        {
+            Creature* Julianne = ObjectAccessor::GetCreature(*me, JulianneGUID);
+            if (Julianne && Julianne->GetVictim())
+            {
+                me->AddThreat(Julianne->GetVictim(), 1.0f);
+                AttackStart(Julianne->GetVictim());
+            }
+        }
+        _scheduler.Schedule(15s, [this](TaskContext context)
+        {
+            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 100, true))
+            {
+                if (target && !me->HasInArc(M_PI, target))
+                {
+                    DoCast(target, SPELL_BACKWARD_LUNGE);
+                    context.Repeat(15s, 30s);
+                }
+            }
+        }).Schedule(20s, [this](TaskContext context)
+        {
+            DoCastSelf(SPELL_DARING);
+            context.Repeat(20s, 40s);
+        }).Schedule(25s, [this](TaskContext context)
+        {
+            DoCastRandomTarget(SPELL_DEADLY_SWATHE);
+            context.Repeat(15s, 25s);
+        }).Schedule(10s, [this](TaskContext context)
+        {
+            DoCastVictim(SPELL_POISON_THRUST);
+            context.Repeat(10s, 20s);
+        });
+    }
+
+    void MoveInLineOfSight(Unit* who) override
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        ScriptedAI::MoveInLineOfSight(who);
+    }
+
+    void EnterEvadeMode(EvadeReason reason) override
+    {
+        ScriptedAI::EnterEvadeMode(reason);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, FAIL);
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        Talk(SAY_ROMULO_DEATH);
+
+        instance->SetBossState(DATA_OPERA_PERFORMANCE, DONE);
+    }
+
+    void KilledUnit(Unit* /*victim*/) override
+    {
+        Talk(SAY_ROMULO_SLAY);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim() || IsFakingDeath)
+            return;
+        
+        _scheduler.Update(diff)
+
+        if (JulianneDead)
+        {
+            _scheduler.Schedule(10s, [this](TaskContext)
+            {
+                Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID));
+                if (Julianne && CAST_AI(boss_julianne, Julianne->AI())->IsFakingDeath)
+                {
+                    Talk(SAY_ROMULO_RESURRECT);
+                    Resurrect(Julianne);
+                    CAST_AI(boss_julianne, Julianne->AI())->IsFakingDeath = false;
+                    JulianneDead = false;
+                }
+            });
+                
+        }
+
+        DoMeleeAttackIfReady();
+    }
+private:
+    TaskScheduler _scheduler;
+};
 
 void AddSC_bosses_opera()
 {
@@ -1512,8 +1398,8 @@ void AddSC_bosses_opera()
     RegisterKarazhanCreatureAI(boss_crone);
     RegisterKarazhanCreatureAI(npc_tito);
     RegisterKarazhanCreatureAI(npc_cyclone);
-    new npc_grandmother();
-    new boss_bigbadwolf();
-    new boss_julianne();
-    new boss_romulo();
+    RegisterKarazhanCreatureAI(npc_grandmother);
+    RegisterKarazhanCreatureAI(boss_bigbadwolf);
+    RegisterKarazhanCreatureAI(boss_julianne);
+    RegisterKarazhanCreatureAI(boss_romulo);
 }
