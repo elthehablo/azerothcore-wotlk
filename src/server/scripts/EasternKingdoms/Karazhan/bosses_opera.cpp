@@ -745,7 +745,7 @@ struct npc_grandmother : public CreatureScript
 {
     npc_grandmother() : CreatureScript("npc_grandmother") { }
 
-    
+
 
     bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
     {
@@ -1064,8 +1064,8 @@ struct boss_julianne : public ScriptedAI
                     if (Creature* pRomulo = me->SummonCreature(CREATURE_ROMULO, ROMULO_X, ROMULO_Y, me->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, HOUR * 2 * IN_MILLISECONDS))
                     {
                         RomuloGUID = pRomulo->GetGUID();
-                        CAST_AI(boss_romulo, pRomulo->AI())->JulianneGUID = me->GetGUID();
-                        CAST_AI(boss_romulo, pRomulo->AI())->Phase = PHASE_ROMULO;
+                        //CAST_AI(boss_romulo, pRomulo->AI())->JulianneGUID = me->GetGUID();
+                        //CAST_AI(boss_romulo, pRomulo->AI())->Phase = PHASE_ROMULO;
                         DoZoneInCombat(pRomulo);
                         pRomulo->SetFaction(FACTION_MONSTER_2);
                     }
@@ -1131,7 +1131,7 @@ struct boss_julianne : public ScriptedAI
                 PretendToDie(me);
                 IsFakingDeath = true;
                 //rez timer for Romulo? still needs handling?
-                CAST_AI(boss_romulo, Romulo->AI())->JulianneDead = true;
+                //CAST_AI(boss_romulo, Romulo->AI())->JulianneDead = true;
                 damage = 0;
                 return;
             }
