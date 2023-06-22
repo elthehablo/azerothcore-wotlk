@@ -97,6 +97,11 @@ enum Creatures
     CREATURE_CRONE          = 18168,
 };
 
+enum OzActions
+{
+    ACTION_TITO             = 0
+};
+
 void SummonCroneIfReady(InstanceScript* instance, Creature* creature)
 {
     instance->SetData(DATA_OPERA_OZ_DEATHCOUNT, SPECIAL);  // Increment DeathCount
@@ -129,24 +134,23 @@ struct boss_dorothee : public ScriptedAI
     {
         TitoDied = false;
         _introDone = false;
-
-        Talk(SAY_DOROTHEE_AGGRO);
-        _scheduler.Schedule(12s, [this](TaskContext)
-        {
-            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(false);
-            me->SetInCombatWithZone();
-        });
     }
 
     InstanceScript* instance;
     bool TitoDied;
-
-
+    ObjectGuid DorotheeGUID;
 
     void Reset() override
     {
         Initialize();
+    }
+
+    void DoAction(int32 action) override
+    {
+        if(action == ACTION_TITO)
+        {
+            DorotheeGUID = me->GetGUID();
+        }
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -208,9 +212,13 @@ struct boss_dorothee : public ScriptedAI
         }
     }
 
+    ObjectGuid returnGUID()
+    {
+        return me->GetGUID();
+    }
+
     void UpdateAI(uint32 diff) override
     {
-        /*
         if(!_introDone)
         {
             if(!me->IsInEvadeMode())
@@ -225,7 +233,6 @@ struct boss_dorothee : public ScriptedAI
                 _introDone = true;
             }
         }
-        */
 
         if (!UpdateVictim())
             return;
@@ -290,12 +297,11 @@ private:
 
 void boss_dorothee::SummonTito()
 {
-    npc_tito* titoPtr = nullptr;
     if (Creature* pTito = me->SummonCreature(CREATURE_TITO, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000))
     {
         Talk(SAY_DOROTHEE_SUMMON);
         //CAST_AI(npc_tito, pTito->AI())->DorotheeGUID = me->GetGUID();
-        titoPtr->DorotheeGUID = me->GetGUID();
+        DoAction(ACTION_TITO);
         pTito->AI()->AttackStart(me->GetVictim());
         TitoDied = false;
     }

@@ -544,7 +544,6 @@ struct npc_aran_elemental : public ScriptedAI
 {
     npc_aran_elemental(Creature* creature) : ScriptedAI(creature)
     { 
-        SetCombatMovement(false);
         _scheduler.SetValidator([this]
         {
             return !me->HasUnitState(UNIT_STATE_CASTING);
@@ -558,10 +557,10 @@ struct npc_aran_elemental : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     { 
-        _scheduler.Schedule(2s, 5s, [this](TaskContext context)
+        _scheduler.Schedule(2s, [this](TaskContext context)
         {
             DoCastVictim(SPELL_WATERBOLT);
-            context.Repeat(2s, 5s);
+            context.Repeat(2s);
         });
     }
 
