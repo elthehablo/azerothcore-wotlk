@@ -134,7 +134,6 @@ struct boss_dorothee : public ScriptedAI
     InstanceScript* instance;
     bool TitoDied;
 
-    npc_tito* titoPtr = nullptr;
 
 
     void Reset() override
@@ -282,6 +281,7 @@ private:
 
 void boss_dorothee::SummonTito()
 {
+    npc_tito* titoPtr = nullptr;
     if (Creature* pTito = me->SummonCreature(CREATURE_TITO, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000))
     {
         Talk(SAY_DOROTHEE_SUMMON);
