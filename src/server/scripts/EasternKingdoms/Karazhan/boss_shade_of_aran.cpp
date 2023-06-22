@@ -101,6 +101,7 @@ struct boss_shade_of_aran : public BossAI
     
     void Reset() override
     {
+        _Reset();
         LastSuperSpell = rand() % 3;
 
         for (uint8 i = 0; i < 3; ++i)
@@ -529,7 +530,14 @@ private:
 
 struct npc_aran_elemental : public ScriptedAI
 {
-    npc_aran_elemental(Creature* creature) : ScriptedAI(creature) { }
+    npc_aran_elemental(Creature* creature) : ScriptedAI(creature)
+    { 
+        SetCombatMovement(false);
+        _scheduler.SetValidator([this]
+        {
+            return !me->HasUnitState(UNIT_STATE_CASTING);
+        });
+    }
 
     void Reset() override
     {

@@ -129,6 +129,14 @@ struct boss_dorothee : public ScriptedAI
     {
         TitoDied = false;
         _introDone = false;
+
+        Talk(SAY_DOROTHEE_AGGRO);
+        _scheduler.Schedule(12s, [this](TaskContext)
+        {
+            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            me->SetImmuneToPC(false);
+            me->SetInCombatWithZone();
+        });
     }
 
     InstanceScript* instance;
@@ -202,20 +210,22 @@ struct boss_dorothee : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
+        /*
         if(!_introDone)
         {
             if(!me->IsInEvadeMode())
             {
                 Talk(SAY_DOROTHEE_AGGRO);
-                _introDone = true;
                 _scheduler.Schedule(12s, [this](TaskContext)
                 {
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->SetImmuneToPC(false);
                     me->SetInCombatWithZone();
                 });
+                _introDone = true;
             }
         }
+        */
 
         if (!UpdateVictim())
             return;
@@ -226,7 +236,6 @@ struct boss_dorothee : public ScriptedAI
     }
 private:
     TaskScheduler _scheduler;
-
     bool _introDone;
 };
 
