@@ -81,10 +81,7 @@ struct boss_shade_of_aran : public BossAI
 {
     boss_shade_of_aran(Creature* creature) : BossAI(creature, DATA_ARAN)
     {
-        scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
-        });
+        SetCombatMovement(false);
     }
 
     uint8 LastSuperSpell;
@@ -245,11 +242,6 @@ struct boss_shade_of_aran : public BossAI
 
         DoZoneInCombat();
 
-        if (GameObject* libraryDoor = instance->instance->GetGameObject(instance->GetGuidData(DATA_GO_LIBRARY_DOOR)))
-        {
-            libraryDoor->SetGoState(GO_STATE_READY);
-            libraryDoor->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
-        }
         //handle timed closing door
         scheduler.Schedule(15s, [this](TaskContext)
         {
@@ -395,6 +387,10 @@ struct boss_shade_of_aran : public BossAI
             Talk(SAY_TIMEOVER);
 
             context.Repeat(1min);
+        }).Schedule(15s, [this](TaskContext)
+        {
+            me->Yell("Oof ouch owie, my mana!", LANG_UNIVERSAL);
+            me->SetPower(POWER_MANA, 3000);
         });
     }
 
@@ -544,6 +540,7 @@ struct npc_aran_elemental : public ScriptedAI
 {
     npc_aran_elemental(Creature* creature) : ScriptedAI(creature)
     { 
+        SetCombatMovement(false);
         _scheduler.SetValidator([this]
         {
             return !me->HasUnitState(UNIT_STATE_CASTING);
