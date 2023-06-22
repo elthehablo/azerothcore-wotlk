@@ -948,6 +948,8 @@ void Resurrect(Creature* target)
         target->GetMotionMaster()->Initialize();
 }
 
+struct boss_romulo; // to allow to get our RomuloPtr
+
 struct boss_julianne : public ScriptedAI
 {
     boss_julianne(Creature* creature) : ScriptedAI(creature)
@@ -956,7 +958,7 @@ struct boss_julianne : public ScriptedAI
         IsFakingDeath = false;
     }
 
-    boss_romulo* romuloPtr;
+    boss_romulo* romuloPtr = nullptr;
 
     InstanceScript* instance;
 
@@ -1207,7 +1209,7 @@ struct boss_romulo : public ScriptedAI
         //AggroYellTimer = 15000;
     }
 
-    boss_julianne* juliannePtr;
+    boss_julianne* juliannePtr = nullptr;
 
     InstanceScript* instance;
 
