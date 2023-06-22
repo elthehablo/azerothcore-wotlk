@@ -1421,7 +1421,7 @@ void AddSC_bosses_opera()
     RegisterKarazhanCreatureAI(boss_crone);
     RegisterKarazhanCreatureAI(npc_tito);
     RegisterKarazhanCreatureAI(npc_cyclone);
-    RegisterKarazhanCreatureAI(npc_grandmother);
+    new npc_grandmother();
     RegisterKarazhanCreatureAI(boss_bigbadwolf);
     RegisterKarazhanCreatureAI(boss_julianne);
     RegisterKarazhanCreatureAI(boss_romulo);
