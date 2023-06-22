@@ -73,7 +73,8 @@ enum SuperSpell
 
 enum Groups
 {
-    GROUP_FLAMEWREATH = 0
+    GROUP_FLAMEWREATH   = 0,
+    GROUP_DRINKING      = 1
 };
 
 struct boss_shade_of_aran : public BossAI
@@ -126,6 +127,7 @@ struct boss_shade_of_aran : public BossAI
             libraryDoor->SetGoState(GO_STATE_ACTIVE);
             libraryDoor->RemoveGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
         }
+
 
         ScheduleHealthCheckEvent(40, [&]{
             Creature* ElementalOne = me->SummonCreature(CREATURE_WATER_ELEMENTAL, -11168.1f, -1939.29f, 232.092f, 1.46f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 90000);
@@ -446,39 +448,35 @@ struct boss_shade_of_aran : public BossAI
 
             Talk(SAY_DRINK);
 
-            if (!DrinkInturrupted)
+            DoCastSelf(SPELL_MASS_POLY, true);
+            DoCastSelf(SPELL_CONJURE, false);
+            DoCastSelf(SPELL_DRINK, false);
+            me->SetStandState(UNIT_STAND_STATE_SIT);
+            DrinkInterruptTimer = 10000;
+            _currentHealth = me->GetHealth();
+            scheduler.Schedule(500ms, GROUP_DRINKING, [this](TaskContext context)
             {
-                DoCastSelf(SPELL_MASS_POLY, true);
-                DoCastSelf(SPELL_CONJURE, false);
-                DoCastSelf(SPELL_DRINK, false);
-                me->SetStandState(UNIT_STAND_STATE_SIT);
-                DrinkInterruptTimer = 10000;
-            }
-        }
+                //check for damage to interrupt
+                if(CheckDamageDuringDrinking(_currentHealth))
+                {
+                    Drinking = false;
+                    me->RemoveAurasDueToSpell(SPELL_DRINK);
+                    me->SetStandState(UNIT_STAND_STATE_STAND);
+                    me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
+                    DoCastSelf(SPELL_POTION, false);
+                    scheduler.CancelGroup(GROUP_DRINKING);
+                }
 
-        //Drink Interrupt
-        if (Drinking && DrinkInturrupted)
-        {
-            Drinking = false;
-            me->RemoveAurasDueToSpell(SPELL_DRINK);
-            me->SetStandState(UNIT_STAND_STATE_STAND);
-            me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
-            DoCastSelf(SPELL_POTION, false);
-        }
-
-        //Drink Interrupt Timer
-        if (Drinking && !DrinkInturrupted)
-        {
-            if (DrinkInterruptTimer >= diff)
-                DrinkInterruptTimer -= diff;
-            else
+                context.Repeat(500ms);
+            })
+            .Schedule(10s, GROUP_DRINKING, [this](TaskContext)
             {
                 me->SetStandState(UNIT_STAND_STATE_STAND);
                 DoCastSelf(SPELL_POTION, true);
                 DoCastSelf(SPELL_AOE_PYROBLAST, false);
                 DrinkInturrupted = true;
                 Drinking = false;
-            }
+            });
         }
 
         //Don't execute any more code if we are drinking
@@ -489,12 +487,25 @@ struct boss_shade_of_aran : public BossAI
             DoMeleeAttackIfReady();
     }
 
+    /* find a different way to do this
     void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
     {
         if (!DrinkInturrupted && Drinking && damage)
             DrinkInturrupted = true;
     }
+    */
 
+    bool CheckDamageDuringDrinking(uint32 oldHealth)
+    {
+        if (Drinking)
+        {
+            if (me->GetHealth() < oldHealth)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
     void SpellHit(Unit* /*pAttacker*/, SpellInfo const* Spell) override
     {
         //We only care about interrupt effects and only if they are durring a spell currently being cast
@@ -526,6 +537,7 @@ private:
     bool _arcaneCooledDown;
     bool _fireCooledDown;
     bool _frostCooledDown;
+    uint32 _currentHealth;
 };
 
 struct npc_aran_elemental : public ScriptedAI
