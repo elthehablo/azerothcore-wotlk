@@ -92,10 +92,7 @@ struct boss_shade_of_aran : public BossAI
 
     uint32 CurrentNormalSpell;
 
-    uint32 DrinkInterruptTimer;
-
     bool Drinking;
-    bool DrinkInturrupted;
     
     void Reset() override
     {
@@ -111,10 +108,7 @@ struct boss_shade_of_aran : public BossAI
         _fireCooledDown = true;
         _frostCooledDown = true;
 
-        DrinkInterruptTimer = 10000;
-
         Drinking = false;
-        DrinkInturrupted = false;
 
         // Not in progress
         instance->SetData(DATA_ARAN, NOT_STARTED);
@@ -448,13 +442,13 @@ struct boss_shade_of_aran : public BossAI
             DoCastSelf(SPELL_CONJURE, false);
             DoCastSelf(SPELL_DRINK, false);
             me->SetStandState(UNIT_STAND_STATE_SIT);
-            DrinkInterruptTimer = 10000;
             _currentHealth = me->GetHealth();
             scheduler.Schedule(500ms, GROUP_DRINKING, [this](TaskContext context)
             {
                 //check for damage to interrupt
                 if(CheckDamageDuringDrinking(_currentHealth))
                 {
+                    me->Yell("I took damage", LANG_UNIVERSAL);
                     Drinking = false;
                     me->RemoveAurasDueToSpell(SPELL_DRINK);
                     me->SetStandState(UNIT_STAND_STATE_STAND);
@@ -462,15 +456,15 @@ struct boss_shade_of_aran : public BossAI
                     DoCastSelf(SPELL_POTION, false);
                     scheduler.CancelGroup(GROUP_DRINKING);
                 }
-
+                me->Yell("Repeating drinking process", LANG_UNIVERSAL);
                 context.Repeat(500ms);
             })
             .Schedule(10s, GROUP_DRINKING, [this](TaskContext)
             {
+                me->Yell("I got to drink all!", LANG_UNIVERSAL);
                 me->SetStandState(UNIT_STAND_STATE_STAND);
                 DoCastSelf(SPELL_POTION, true);
                 DoCastSelf(SPELL_AOE_PYROBLAST, false);
-                DrinkInturrupted = true;
                 Drinking = false;
             });
         }
