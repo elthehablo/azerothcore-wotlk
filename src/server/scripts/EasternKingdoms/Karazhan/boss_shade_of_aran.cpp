@@ -373,7 +373,7 @@ struct boss_shade_of_aran : public BossAI
                     if (Creature* pSpawn = me->SummonCreature(CREATURE_ARAN_BLIZZARD, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 25000))
                     {
                         pSpawn->SetFaction(me->GetFaction());
-                        pSpawn->DoCast(me, SPELL_CIRCULAR_BLIZZARD);
+                        pSpawn->CastSpell(me, SPELL_CIRCULAR_BLIZZARD, false);
                     }
                     break;
             }
