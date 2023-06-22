@@ -240,7 +240,6 @@ struct npc_tito : public ScriptedAI
     void Reset() override
     {
         DorotheeGUID.Clear();
-        YipTimer = 10000;
     }
 
     void JustEngagedWith(Unit* /*who*/) override
