@@ -183,7 +183,7 @@ struct boss_magtheridon : public BossAI
                 context.Repeat(11s, 39s);
             }).Schedule(40s, [this](TaskContext context)
             {
-                DoCastSelf(SPELL_QUAKE); //needs fixes with custom spell
+                DoCastSelf(SPELL_QUAKE);
                 scheduler.Schedule(7s, [this](TaskContext /*context*/)
                 {
                     DoCastSelf(SPELL_BLAST_NOVA);
@@ -204,7 +204,7 @@ struct boss_magtheridon : public BossAI
                     });
                 });
                 context.Repeat(53s, 56s);
-            }).Schedule(1320s, [this](TaskContext /*context*/)
+            }).Schedule(22m, [this](TaskContext /*context*/)
             {
                 DoCastSelf(SPELL_BERSERK, true);
             });
