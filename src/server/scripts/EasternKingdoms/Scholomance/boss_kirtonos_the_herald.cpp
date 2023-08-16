@@ -165,7 +165,7 @@ public:
                 case INTRO_6:
                     if (!me->IsInCombat())
                     {
-                        me->GetMotionMaster()->MovePoint(0, PosMove[1]);
+                        me->GetMotionMaster()->MovePoint(0, PosMove[1]); //I will keep this in, but it seems rather odd. it does not happen rn as it gets overwritten by the wander
                         me->SetWanderDistance(2.0f);
                     }
                     break;
