@@ -160,6 +160,7 @@ public:
                     me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, uint32(WEAPON_KIRTONOS_STAFF));
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->SetImmuneToAll(false);
+                    me->SetWanderDistance(5.0f);
                     me->SetReactState(REACT_AGGRESSIVE);
                     break;
                 case INTRO_6:
