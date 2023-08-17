@@ -29,6 +29,11 @@ DoorData const doorData[] =
     { GO_COILFANG_BRIDGE3,          DATA_BRIDGE_EMERGED, DOOR_TYPE_PASSAGE }
 };
 
+ObjectData const creatureData[] =
+{
+    { NPC_LEOTHERAS_THE_BLIND, DATA_LEOTHERAS_THE_BLIND },
+};
+
 class instance_serpent_shrine : public InstanceMapScript
 {
 public:
@@ -45,6 +50,7 @@ public:
             SetHeaders(DataHeader);
             SetBossNumber(MAX_ENCOUNTERS);
             LoadDoorData(doorData);
+            LoadObjectData(creatureData, nullptr);
 
             AliveKeepersCount = 0;
         }
