@@ -60,8 +60,8 @@ enum Misc
     EVENT_KILL_TALK                 = 5
 };
 
-const uint32 wateryGraveId[4] = {SPELL_WATERY_GRAVE_1, SPELL_WATERY_GRAVE_2, SPELL_WATERY_GRAVE_3, SPELL_WATERY_GRAVE_4};
-const uint32 waterGlobuleId[4] = {SPELL_SUMMON_WATER_GLOBULE_1, SPELL_SUMMON_WATER_GLOBULE_2, SPELL_SUMMON_WATER_GLOBULE_3, SPELL_SUMMON_WATER_GLOBULE_4};
+const uint32 wateryGraveIds[4] = {SPELL_WATERY_GRAVE_1, SPELL_WATERY_GRAVE_2, SPELL_WATERY_GRAVE_3, SPELL_WATERY_GRAVE_4};
+const uint32 waterGlobuleIds[4] = {SPELL_SUMMON_WATER_GLOBULE_1, SPELL_SUMMON_WATER_GLOBULE_2, SPELL_SUMMON_WATER_GLOBULE_3, SPELL_SUMMON_WATER_GLOBULE_4};
 
 struct boss_morogrim_tidewalker : public BossAI
 {
@@ -110,10 +110,6 @@ struct boss_morogrim_tidewalker : public BossAI
         BossAI::JustEngagedWith(who);
         Talk(SAY_AGGRO);
 
-        events.ScheduleEvent(EVENT_SPELL_TIDAL_WAVE, 10000);
-        events.ScheduleEvent(EVENT_SPELL_WATERY_GRAVE, 28000);
-        events.ScheduleEvent(EVENT_SPELL_EARTHQUAKE, 40000);
-
         scheduler.Schedule(10s, [this](TaskContext context)
         {
             DoCastVictim(SPELL_TIDAL_WAVE);
@@ -129,9 +125,9 @@ struct boss_morogrim_tidewalker : public BossAI
             else
             {
                 Talk(EMOTE_WATERY_GLOBULES);
-                for (uint8 i = 0; i < 4; ++i)
+                for (uint8 waterGlobuleId : waterGlobuleIds)
                 {
-                    DoCastSelf(waterGlobuleId[i], true);
+                    DoCastSelf(waterGlobuleId, true);
                 }
             }
             context.Repeat(25s);
@@ -175,7 +171,7 @@ public:
             PreventHitDefaultEffect(effIndex);
             if (Unit* target = GetHitUnit())
                 if (_targetNumber < 4)
-                    GetCaster()->CastSpell(target, wateryGraveId[_targetNumber++], true);
+                    GetCaster()->CastSpell(target, wateryGraveIds[_targetNumber++], true);
         }
 
         void Register() override
