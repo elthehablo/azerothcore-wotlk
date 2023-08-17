@@ -47,19 +47,6 @@ enum Spells
     SPELL_SUMMON_WATER_GLOBULE_4    = 37861
 };
 
-enum Misc
-{
-    // Creatures
-    NPC_WATER_GLOBULE               = 21913,
-    NPC_TIDEWALKER_LURKER           = 21920,
-
-    EVENT_SPELL_TIDAL_WAVE          = 1,
-    EVENT_SPELL_WATERY_GRAVE        = 2,
-    EVENT_SPELL_EARTHQUAKE          = 3,
-    EVENT_SUMMON_MURLOCS            = 4,
-    EVENT_KILL_TALK                 = 5
-};
-
 const uint32 wateryGraveIds[4] = {SPELL_WATERY_GRAVE_1, SPELL_WATERY_GRAVE_2, SPELL_WATERY_GRAVE_3, SPELL_WATERY_GRAVE_4};
 const uint32 waterGlobuleIds[4] = {SPELL_SUMMON_WATER_GLOBULE_1, SPELL_SUMMON_WATER_GLOBULE_2, SPELL_SUMMON_WATER_GLOBULE_3, SPELL_SUMMON_WATER_GLOBULE_4};
 
