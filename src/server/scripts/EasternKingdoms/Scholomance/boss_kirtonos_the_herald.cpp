@@ -43,14 +43,15 @@ enum Events
     INTRO_4                           = 4,
     INTRO_5                           = 5,
     INTRO_6                           = 6,
-    EVENT_SWOOP                       = 7,
-    EVENT_WING_FLAP                   = 8,
-    EVENT_PIERCE_ARMOR                = 9,
-    EVENT_DISARM                      = 10,
-    EVENT_SHADOW_BOLT_VOLLEY          = 11,
-    EVENT_CURSE_OF_TONGUES            = 12,
-    EVENT_DOMINATE_MIND               = 13,
-    EVENT_KIRTONOS_TRANSFORM          = 14
+    INTRO_7 	                      = 7,
+    EVENT_SWOOP                       = 8,
+    EVENT_WING_FLAP                   = 9,
+    EVENT_PIERCE_ARMOR                = 10,
+    EVENT_DISARM                      = 11,
+    EVENT_SHADOW_BOLT_VOLLEY          = 12,
+    EVENT_CURSE_OF_TONGUES            = 13,
+    EVENT_DOMINATE_MIND               = 14,
+    EVENT_KIRTONOS_TRANSFORM          = 15
 };
 
 enum Misc
@@ -115,6 +116,7 @@ public:
                 events2.ScheduleEvent(INTRO_4, 5500ms);
                 events2.ScheduleEvent(INTRO_5, 6500ms);
                 events2.ScheduleEvent(INTRO_6, 11500ms);
+                events2.ScheduleEvent(INTRO_7, 13000ms);
             }
         }
 
@@ -165,9 +167,11 @@ public:
                 case INTRO_6:
                     if (!me->IsInCombat())
                     {
-                        me->GetMotionMaster()->MovePoint(0, PosMove[1]); //I will keep this in, but it seems rather odd. it does not happen rn as it gets overwritten by the wander
-                        me->SetWanderDistance(2.0f);
+                        me->GetMotionMaster()->MovePoint(0, PosMove[1]);
                     }
+                    break;
+                case INTRO_7:
+                    me->SetWanderDistance(2.0f);
                     break;
             }
 
