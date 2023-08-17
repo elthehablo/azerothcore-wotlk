@@ -166,7 +166,7 @@ public:
 
         bool Load() override
         {
-            targetNumber = 0;
+            _targetNumber = 0;
             return true;
         }
 
@@ -174,8 +174,8 @@ public:
         {
             PreventHitDefaultEffect(effIndex);
             if (Unit* target = GetHitUnit())
-                if (targetNumber < 4)
-                    GetCaster()->CastSpell(target, wateryGraveId[targetNumber++], true);
+                if (_targetNumber < 4)
+                    GetCaster()->CastSpell(target, wateryGraveId[_targetNumber++], true);
         }
 
         void Register() override
@@ -184,7 +184,7 @@ public:
         }
 
     private:
-        uint8 targetNumber;
+        uint8 _targetNumber;
     };
 
     SpellScript* GetSpellScript() const override
@@ -217,6 +217,7 @@ public:
                     return;
 
             // Xinef: acquire new target
+            // TODO: sniffs to see how this actually happens
             if (Unit* target = GetHitUnit())
                 GetCaster()->AddThreat(target, 1000000.0f);
         }
