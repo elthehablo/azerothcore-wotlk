@@ -101,6 +101,7 @@ struct boss_leotheras_the_blind : public BossAI
                 //is currently in metamorphosis
                 DoResetThreatList();
                 me->LoadEquipment();
+                me->RemoveAurasDueToSpell(SPELL_METAMORPHOSIS);
 
                 scheduler.RescheduleGroup(GROUP_COMBAT, 10s);
             }
