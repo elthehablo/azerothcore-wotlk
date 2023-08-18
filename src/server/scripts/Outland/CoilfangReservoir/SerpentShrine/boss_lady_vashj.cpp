@@ -170,7 +170,7 @@ struct boss_lady_vashj : public BossAI
             context.Repeat(10s, 20s);
         }).Schedule(15s, [this](TaskContext context)
         {
-            DoCastRandomTarget(SPELL_STATIC_CHARGE, 40.0f);
+            DoCastRandomTarget(SPELL_STATIC_CHARGE);
             context.Repeat(20s);
         }).Schedule(20s, [this](TaskContext context)
         {
@@ -203,7 +203,7 @@ struct boss_lady_vashj : public BossAI
 
         scheduler.Schedule(3s, [this](TaskContext context)
         {
-            DoCastRandomTarget(SPELL_FORKED_LIGHTNING, 60.0f);
+            DoCastRandomTarget(SPELL_FORKED_LIGHTNING);
             context.Repeat(2500s, 5000s);
         }).Schedule(0s, [this](TaskContext context)
         {
