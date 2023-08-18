@@ -290,6 +290,7 @@ struct npc_inner_demon : public ScriptedAI
         {
             return who->GetGUID() == leotheras->GetGUID();
         }
+        return false;
     }
 
     void UpdateAI(uint32 diff) override
