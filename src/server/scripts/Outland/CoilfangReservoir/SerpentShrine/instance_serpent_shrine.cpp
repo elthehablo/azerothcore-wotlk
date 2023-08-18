@@ -31,8 +31,8 @@ DoorData const doorData[] =
 
 ObjectData const creatureData[] =
 {
-    { NPC_LEOTHERAS_THE_BLIND, DATA_LEOTHERAS_THE_BLIND },
-    { NPC_LADY_VASHJ, DATA_LADY_VASHJ }
+    { NPC_LEOTHERAS_THE_BLIND,      DATA_LEOTHERAS_THE_BLIND },
+    { NPC_LADY_VASHJ,               DATA_LADY_VASHJ          }
 };
 
 class instance_serpent_shrine : public InstanceMapScript
