@@ -95,6 +95,12 @@ struct boss_leotheras_the_blind : public BossAI
         me->SetReactState(REACT_PASSIVE);
         _recentlySpoken = false;
 
+        if(!_channelersSummoned)
+        {
+            //make sure it is not cast twice with the initialize
+            SummonChannelers();
+        }
+
         ScheduleHealthCheckEvent(15, [&]{
             if (me->GetDisplayId() != me->GetNativeDisplayId())
             {
@@ -134,6 +140,7 @@ struct boss_leotheras_the_blind : public BossAI
 
     void SummonChannelers()
     {
+        _channelersSummoned = true;
         me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_BANISH, false);
         DoCastSelf(SPELL_BANISH);
         me->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_BANISH, true);
@@ -159,6 +166,7 @@ struct boss_leotheras_the_blind : public BossAI
         {
             if (!summons.HasEntry(NPC_GREYHEART_SPELLBINDER))
             {
+                _channelersSummoned = false;
                 me->RemoveAllAuras();
                 me->LoadEquipment();
                 me->SetReactState(REACT_AGGRESSIVE);
@@ -232,6 +240,7 @@ struct boss_leotheras_the_blind : public BossAI
 
 private:
     bool _recentlySpoken;
+    bool _channelersSummoned;
 };
 
 struct npc_inner_demon : public ScriptedAI
