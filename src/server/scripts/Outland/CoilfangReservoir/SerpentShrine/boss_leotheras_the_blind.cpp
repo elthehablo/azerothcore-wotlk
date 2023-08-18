@@ -214,7 +214,7 @@ struct boss_leotheras_the_blind : public BossAI
         if (!UpdateVictim())
             return;
 
-        events.Update(diff);
+        scheduler.Update(diff);
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
