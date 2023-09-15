@@ -195,22 +195,18 @@ struct boss_malchezaar : public BossAI
 
         instance->HandleGameObject(instance->GetGuidData(DATA_GO_NETHER_DOOR), false);
 
-        scheduler.Schedule(30s, [this](TaskContext context)
+        scheduler.Schedule(30s, GROUP_ENFEEBLE, [this](TaskContext context)
         {
             EnfeebleHealthEffect();
 
             scheduler.Schedule(9s, [this](TaskContext)
             {
                 EnfeebleResetHealth();
-            });
-
-            context.SetGroup(GROUP_ENFEEBLE);
-            scheduler.DelayGroup(GROUP_SHADOW_NOVA, 5s);
+            }
             context.Repeat();
-        }).Schedule(35500ms, [this](TaskContext context)
+        }).Schedule(35500ms, GROUP_ENFEEBLE, [this](TaskContext context)
         {
             DoCastAOE(SPELL_SHADOW_NOVA);
-            context.SetGroup(GROUP_SHADOW_NOVA);
             context.Repeat();
         }).Schedule(40s, [this](TaskContext context)
         {
