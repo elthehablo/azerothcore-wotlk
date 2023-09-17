@@ -384,6 +384,7 @@ struct boss_shade_of_aran : public BossAI
                     drinkScheduler.CancelGroup(GROUP_DRINKING);
                     _drinking = false;
                 });
+                context.Repeat(12s); //semi-arbitrary duration to envelop drinking duration
             }
             else
             {
