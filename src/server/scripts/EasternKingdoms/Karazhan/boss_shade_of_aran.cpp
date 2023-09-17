@@ -337,11 +337,9 @@ struct boss_shade_of_aran : public BossAI
         }).Schedule(1s, [this](TaskContext context){
             if (me->GetMaxPower(POWER_MANA) && (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA)) < 20)
             {
-                me->InterruptNonMeleeSpells(false);
-
-                Talk(SAY_DRINK);
-
                 scheduler.DelayAll(10s);
+                me->InterruptNonMeleeSpells(true);
+                Talk(SAY_DRINK);
                 DoCastSelf(SPELL_MASS_POLY, true);
                 DoCastSelf(SPELL_CONJURE, false);
                 me->SetReactState(REACT_PASSIVE);
