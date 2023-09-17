@@ -74,7 +74,10 @@ enum SuperSpell
 enum Groups
 {
     GROUP_FLAMEWREATH   = 0,
-    GROUP_DRINKING      = 1
+    GROUP_DRINKING      = 1,
+    GROUP_NORMAL_CAST   = 2,
+    GROUP_CHAINS        = 3,
+    GROUP_SUPER         = 4
 };
 
 Position const elementalPos[4] =
@@ -212,7 +215,7 @@ struct boss_shade_of_aran : public BossAI
                 libraryDoor->SetGoState(GO_STATE_READY);
                 libraryDoor->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
             }
-        }).Schedule(1ms, [this](TaskContext context)
+        }).Schedule(1ms, GROUP_NORMAL_CAST, [this](TaskContext context)
         {
             if (!me->IsNonMeleeSpellCast(false))
             {
@@ -248,7 +251,7 @@ struct boss_shade_of_aran : public BossAI
                 }
             }
             context.Repeat(2s);
-        }).Schedule(5s, [this](TaskContext context)
+        }).Schedule(5s, GROUP_CHAINS, [this](TaskContext context)
         {
             switch (urand(0, 1))
             {
@@ -260,7 +263,7 @@ struct boss_shade_of_aran : public BossAI
                     break;
             }
             context.Repeat(5s, 20s);
-        }).Schedule(35s, [this](TaskContext context)
+        }).Schedule(35s, GROUP_SUPER, [this](TaskContext context)
         {
             uint8 Available[2];
 
@@ -337,7 +340,9 @@ struct boss_shade_of_aran : public BossAI
         }).Schedule(1s, [this](TaskContext context){
             if (me->GetMaxPower(POWER_MANA) && (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA)) < 20)
             {
-                scheduler.DelayAll(10s);
+                scheduler.CancelGroup(GROUP_NORMAL_CAST);
+                scheduler.CancelGroup(GROUP_CHAINS);
+                scheduler.CancelGroup(GROUP_SUPER);
                 me->InterruptNonMeleeSpells(true);
                 Talk(SAY_DRINK);
                 DoCastSelf(SPELL_MASS_POLY, true);
@@ -358,6 +363,9 @@ struct boss_shade_of_aran : public BossAI
                         DoCastSelf(SPELL_POTION, false);
                         DoCastSelf(SPELL_AOE_PYROBLAST, false);
                         drinkScheduler.CancelGroup(GROUP_DRINKING);
+                        scheduler.RescheduleGroup(GROUP_NORMAL_CAST, 1s);
+                        scheduler.RescheduleGroup(GROUP_CHAINS, 5s);
+                        scheduler.RescheduleGroup(GROUP_SUPER, 35s);
                     } else 
                     {
                         context.Repeat(500ms);
@@ -369,10 +377,11 @@ struct boss_shade_of_aran : public BossAI
                     me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
                     DoCastSelf(SPELL_POTION, true);
                     DoCastSelf(SPELL_AOE_PYROBLAST, false);
-
                     drinkScheduler.CancelGroup(GROUP_DRINKING);
+                    scheduler.RescheduleGroup(GROUP_NORMAL_CAST, 1s);
+                    scheduler.RescheduleGroup(GROUP_CHAINS, 5s);
+                    scheduler.RescheduleGroup(GROUP_SUPER, 35s);
                 });
-                context.Repeat(12s); //arbitrary duration that covers full drink time
             }
             else
             {
