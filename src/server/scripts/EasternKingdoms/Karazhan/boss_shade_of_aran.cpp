@@ -103,8 +103,6 @@ struct boss_shade_of_aran : public BossAI
 
     uint32 CurrentNormalSpell;
 
-    bool Drinking;
-
     void Reset() override
     {
         BossAI::Reset();
@@ -119,8 +117,6 @@ struct boss_shade_of_aran : public BossAI
         _arcaneCooledDown = true;
         _fireCooledDown = true;
         _frostCooledDown = true;
-
-        Drinking = false;
 
         // Not in progress
         instance->SetData(DATA_ARAN, NOT_STARTED);
@@ -189,6 +185,15 @@ struct boss_shade_of_aran : public BossAI
             libraryDoor->SetGoState(GO_STATE_ACTIVE);
             libraryDoor->RemoveGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
         }
+    }
+
+    bool CheckDamageDuringDrinking(uint32 oldHealth)
+    {
+        if (me->GetHealth() < oldHealth)
+        {
+            return true;
+        }
+        return false;
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -329,6 +334,52 @@ struct boss_shade_of_aran : public BossAI
                     break;
             }
             context.Repeat(35s, 40s);
+        }).Schedule(1s, [this](TaskContext context){
+            if (me->GetMaxPower(POWER_MANA) && (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA)) < 20)
+            {
+                me->InterruptNonMeleeSpells(false);
+
+                Talk(SAY_DRINK);
+
+                scheduler.DelayAll(10s);
+                DoCastSelf(SPELL_MASS_POLY, true);
+                DoCastSelf(SPELL_CONJURE, false);
+                me->SetReactState(REACT_PASSIVE);
+                me->SetStandState(UNIT_STAND_STATE_SIT);
+                DoCastSelf(SPELL_DRINK, true);
+                _currentHealth = me->GetHealth();
+                drinkScheduler.Schedule(500ms, GROUP_DRINKING, [this](TaskContext context)
+                {
+                    //check for damage to interrupt
+                    if(CheckDamageDuringDrinking(_currentHealth))
+                    {
+                        me->RemoveAurasDueToSpell(SPELL_DRINK);
+                        me->SetStandState(UNIT_STAND_STATE_STAND);
+                        me->SetReactState(REACT_AGGRESSIVE);
+                        me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
+                        DoCastSelf(SPELL_POTION, false);
+                        DoCastSelf(SPELL_AOE_PYROBLAST, false);
+                        drinkScheduler.CancelGroup(GROUP_DRINKING);
+                    } else 
+                    {
+                        context.Repeat(500ms);
+                    }
+                }).Schedule(10s, GROUP_DRINKING, [this](TaskContext)
+                {
+                    me->SetStandState(UNIT_STAND_STATE_STAND);
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
+                    DoCastSelf(SPELL_POTION, true);
+                    DoCastSelf(SPELL_AOE_PYROBLAST, false);
+
+                    drinkScheduler.CancelGroup(GROUP_DRINKING);
+                });
+                context.Repeat(12s); //arbitrary duration that covers full drink time
+            }
+            else
+            {
+                context.Repeat(1s);
+            }
         }).Schedule(12min, [this](TaskContext context)
         {
             for (uint32 i = 0; i < 5; ++i)
@@ -389,63 +440,8 @@ struct boss_shade_of_aran : public BossAI
         if (!UpdateVictim())
             return;
 
-        if (!Drinking && me->GetMaxPower(POWER_MANA) && (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA)) < 20)
-        {
-            Drinking = true;
-            me->InterruptNonMeleeSpells(false);
-
-            Talk(SAY_DRINK);
-
-            scheduler.DelayAll(10s);
-            DoCastSelf(SPELL_MASS_POLY, true);
-            DoCastSelf(SPELL_CONJURE, false);
-            me->SetReactState(REACT_PASSIVE);
-            me->SetStandState(UNIT_STAND_STATE_SIT);
-            DoCastSelf(SPELL_DRINK, true);
-            _currentHealth = me->GetHealth();
-            drinkScheduler.Schedule(500ms, GROUP_DRINKING, [this](TaskContext context)
-            {
-                //check for damage to interrupt
-                if(CheckDamageDuringDrinking(_currentHealth))
-                {
-                    Drinking = false;
-                    me->RemoveAurasDueToSpell(SPELL_DRINK);
-                    me->SetStandState(UNIT_STAND_STATE_STAND);
-                    me->SetReactState(REACT_AGGRESSIVE);
-                    me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
-                    DoCastSelf(SPELL_POTION, false);
-                    DoCastSelf(SPELL_AOE_PYROBLAST, false);
-                    drinkScheduler.CancelGroup(GROUP_DRINKING);
-                } else {
-                    context.Repeat(500ms);
-                }
-            }).Schedule(10s, GROUP_DRINKING, [this](TaskContext)
-            {
-                me->SetStandState(UNIT_STAND_STATE_STAND);
-                me->SetReactState(REACT_AGGRESSIVE);
-                me->SetPower(POWER_MANA, me->GetMaxPower(POWER_MANA) - 32000);
-                DoCastSelf(SPELL_POTION, true);
-                DoCastSelf(SPELL_AOE_PYROBLAST, false);
-
-                Drinking = false;
-                drinkScheduler.CancelGroup(GROUP_DRINKING);
-            });
-        }
-
-        if (_arcaneCooledDown && _fireCooledDown && _frostCooledDown && !Drinking)
+        if (_arcaneCooledDown && _fireCooledDown && _frostCooledDown)
             DoMeleeAttackIfReady();
-    }
-
-    bool CheckDamageDuringDrinking(uint32 oldHealth)
-    {
-        if (Drinking)
-        {
-            if (me->GetHealth() < oldHealth)
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     void SpellHit(Unit* /*pAttacker*/, SpellInfo const* Spell) override
