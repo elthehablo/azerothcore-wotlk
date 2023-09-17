@@ -121,6 +121,8 @@ struct boss_shade_of_aran : public BossAI
         _fireCooledDown = true;
         _frostCooledDown = true;
 
+        _drinking = false;
+
         // Not in progress
         instance->SetData(DATA_ARAN, NOT_STARTED);
 
@@ -215,9 +217,9 @@ struct boss_shade_of_aran : public BossAI
                 libraryDoor->SetGoState(GO_STATE_READY);
                 libraryDoor->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
             }
-        }).Schedule(1ms, GROUP_NORMAL_CAST, [this](TaskContext context)
+        }).Schedule(1ms, [this](TaskContext context)
         {
-            if (!me->IsNonMeleeSpellCast(false))
+            if (!me->IsNonMeleeSpellCast(false) && !_drinking)
             {
                 Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100, true);
                 if (!target)
@@ -251,98 +253,102 @@ struct boss_shade_of_aran : public BossAI
                 }
             }
             context.Repeat(2s);
-        }).Schedule(5s, GROUP_CHAINS, [this](TaskContext context)
+        }).Schedule(5s, [this](TaskContext context)
         {
-            switch (urand(0, 1))
+            if (!_drinking)
             {
-                case 0:
-                    DoCastSelf(SPELL_AOE_CS);
-                    break;
-                case 1:
-                    DoCastRandomTarget(SPELL_CHAINSOFICE);
-                    break;
+            switch (urand(0, 1))
+                {
+                    case 0:
+                        DoCastSelf(SPELL_AOE_CS);
+                        break;
+                    case 1:
+                        DoCastRandomTarget(SPELL_CHAINSOFICE);
+                        break;
+                }
             }
             context.Repeat(5s, 20s);
-        }).Schedule(35s, GROUP_SUPER, [this](TaskContext context)
+        }).Schedule(35s, [this](TaskContext context)
         {
-            uint8 Available[2];
-
-            switch (LastSuperSpell)
+            if (!_drinking)
             {
-                case SUPER_AE:
-                    Available[0] = SUPER_FLAME;
-                    Available[1] = SUPER_BLIZZARD;
-                    break;
-                case SUPER_FLAME:
-                    Available[0] = SUPER_AE;
-                    Available[1] = SUPER_BLIZZARD;
-                    break;
-                case SUPER_BLIZZARD:
-                    Available[0] = SUPER_FLAME;
-                    Available[1] = SUPER_AE;
-                    break;
-            }
+                uint8 Available[2];
 
-            LastSuperSpell = Available[urand(0, 1)];
+                switch (LastSuperSpell)
+                {
+                    case SUPER_AE:
+                        Available[0] = SUPER_FLAME;
+                        Available[1] = SUPER_BLIZZARD;
+                        break;
+                    case SUPER_FLAME:
+                        Available[0] = SUPER_AE;
+                        Available[1] = SUPER_BLIZZARD;
+                        break;
+                    case SUPER_BLIZZARD:
+                        Available[0] = SUPER_FLAME;
+                        Available[1] = SUPER_AE;
+                        break;
+                }
 
-            switch (LastSuperSpell)
-            {
-                case SUPER_AE:
-                    Talk(SAY_EXPLOSION);
+                LastSuperSpell = Available[urand(0, 1)];
 
-                    DoCastSelf(SPELL_BLINK_CENTER, true);
-                    DoCastSelf(SPELL_PLAYERPULL, true);
-                    DoCastSelf(SPELL_MASSSLOW, true);
-                    DoCastSelf(SPELL_AEXPLOSION, false);
-                    break;
+                switch (LastSuperSpell)
+                {
+                    case SUPER_AE:
+                        Talk(SAY_EXPLOSION);
 
-                case SUPER_FLAME:
-                    Talk(SAY_FLAMEWREATH);
+                        DoCastSelf(SPELL_BLINK_CENTER, true);
+                        DoCastSelf(SPELL_PLAYERPULL, true);
+                        DoCastSelf(SPELL_MASSSLOW, true);
+                        DoCastSelf(SPELL_AEXPLOSION, false);
+                        break;
 
-                    scheduler.Schedule(20s, GROUP_FLAMEWREATH, [this](TaskContext)
-                    {
-                        scheduler.CancelGroup(GROUP_FLAMEWREATH);
-                    }).Schedule(500ms, GROUP_FLAMEWREATH, [this](TaskContext context)
-                    {
-                        for (uint8 i = 0; i < 3; ++i)
+                    case SUPER_FLAME:
+                        Talk(SAY_FLAMEWREATH);
+
+                        scheduler.Schedule(20s, GROUP_FLAMEWREATH, [this](TaskContext)
                         {
-                            if (!FlameWreathTarget[i])
-                                continue;
-
-                            Unit* unit = ObjectAccessor::GetUnit(*me, FlameWreathTarget[i]);
-                            if (unit && !unit->IsWithinDist2d(FWTargPosX[i], FWTargPosY[i], 3))
+                            scheduler.CancelGroup(GROUP_FLAMEWREATH);
+                        }).Schedule(500ms, GROUP_FLAMEWREATH, [this](TaskContext context)
+                        {
+                            for (uint8 i = 0; i < 3; ++i)
                             {
-                                unit->CastSpell(unit, 20476, true, 0, 0, me->GetGUID());
-                                FlameWreathTarget[i].Clear();
+                                if (!FlameWreathTarget[i])
+                                    continue;
+
+                                Unit* unit = ObjectAccessor::GetUnit(*me, FlameWreathTarget[i]);
+                                if (unit && !unit->IsWithinDist2d(FWTargPosX[i], FWTargPosY[i], 3))
+                                {
+                                    unit->CastSpell(unit, 20476, true, 0, 0, me->GetGUID());
+                                    FlameWreathTarget[i].Clear();
+                                }
                             }
+                            context.Repeat(500ms);
+                        });
+
+                        FlameWreathTarget[0].Clear();
+                        FlameWreathTarget[1].Clear();
+                        FlameWreathTarget[2].Clear();
+
+                        FlameWreathEffect();
+                        break;
+
+                    case SUPER_BLIZZARD:
+                        Talk(SAY_BLIZZARD);
+
+                        if (Creature* pSpawn = me->SummonCreature(NPC_ARAN_BLIZZARD, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 25000))
+                        {
+                            pSpawn->SetFaction(me->GetFaction());
+                            pSpawn->CastSpell(me, SPELL_CIRCULAR_BLIZZARD, false);
                         }
-                        context.Repeat(500ms);
-                    });
-
-                    FlameWreathTarget[0].Clear();
-                    FlameWreathTarget[1].Clear();
-                    FlameWreathTarget[2].Clear();
-
-                    FlameWreathEffect();
-                    break;
-
-                case SUPER_BLIZZARD:
-                    Talk(SAY_BLIZZARD);
-
-                    if (Creature* pSpawn = me->SummonCreature(NPC_ARAN_BLIZZARD, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 25000))
-                    {
-                        pSpawn->SetFaction(me->GetFaction());
-                        pSpawn->CastSpell(me, SPELL_CIRCULAR_BLIZZARD, false);
-                    }
-                    break;
+                        break;
+                }
             }
             context.Repeat(35s, 40s);
         }).Schedule(1s, [this](TaskContext context){
             if (me->GetMaxPower(POWER_MANA) && (me->GetPower(POWER_MANA) * 100 / me->GetMaxPower(POWER_MANA)) < 20)
             {
-                scheduler.CancelGroup(GROUP_NORMAL_CAST);
-                scheduler.CancelGroup(GROUP_CHAINS);
-                scheduler.CancelGroup(GROUP_SUPER);
+                _drinking = true;
                 me->InterruptNonMeleeSpells(true);
                 Talk(SAY_DRINK);
                 DoCastSelf(SPELL_MASS_POLY, true);
@@ -363,9 +369,7 @@ struct boss_shade_of_aran : public BossAI
                         DoCastSelf(SPELL_POTION, false);
                         DoCastSelf(SPELL_AOE_PYROBLAST, false);
                         drinkScheduler.CancelGroup(GROUP_DRINKING);
-                        scheduler.RescheduleGroup(GROUP_NORMAL_CAST, 1s);
-                        scheduler.RescheduleGroup(GROUP_CHAINS, 5s);
-                        scheduler.RescheduleGroup(GROUP_SUPER, 35s);
+                        _drinking = false;
                     } else 
                     {
                         context.Repeat(500ms);
@@ -378,9 +382,7 @@ struct boss_shade_of_aran : public BossAI
                     DoCastSelf(SPELL_POTION, true);
                     DoCastSelf(SPELL_AOE_PYROBLAST, false);
                     drinkScheduler.CancelGroup(GROUP_DRINKING);
-                    scheduler.RescheduleGroup(GROUP_NORMAL_CAST, 1s);
-                    scheduler.RescheduleGroup(GROUP_CHAINS, 5s);
-                    scheduler.RescheduleGroup(GROUP_SUPER, 35s);
+                    _drinking = false;
                 });
             }
             else
@@ -484,6 +486,7 @@ private:
     bool _arcaneCooledDown;
     bool _fireCooledDown;
     bool _frostCooledDown;
+    bool _drinking;
     uint32 _currentHealth;
 };
 
