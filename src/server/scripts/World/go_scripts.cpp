@@ -51,6 +51,22 @@ EndContentData */
 #include "Spell.h"
 #include "WorldSession.h"
 
+// Generic GameObject aggro
+class go_mining_vein : public GameObjectScript
+{
+public:
+    go_mining_vein() : GameObjectScript("go_mining_vein") { }
+    
+};
+
+class go_generic_chest : public GameObjectScript
+{
+public:
+    go_generic_chest() : GameObjectScript("go_generic_chest") { }
+    
+};
+
+
 // Ours
 /*######
 ## go_noblegarden_colored_egg
@@ -1955,6 +1971,10 @@ public:
 
 void AddSC_go_scripts()
 {
+    // Generic aggro
+    new go_mining_vein();
+    new go_generic_chest();
+
     // Ours
     new go_noblegarden_colored_egg();
     new go_seer_of_zebhalak();
