@@ -56,7 +56,31 @@ class go_mining_vein : public GameObjectScript
 {
 public:
     go_mining_vein() : GameObjectScript("go_mining_vein") { }
-    
+    struct go_mining_veinAI : public GameObjectAI
+    {
+        go_mining_veinAI(GameObject* gameObject) : GameObjectAI(gameObject) { }
+
+        std::list<Creature*> nearbyCreatures;
+
+        void SpellHit(Unit* caster, SpellInfo const* Spell) override
+        {
+            LOG_ERROR("server", "Data {}", "player is casting on vein");
+            if (caster->IsPlayer())
+            {
+                LOG_ERROR("server", "Data {}", "casting player is casting mining");
+                if (Spell->Id == 32606)
+                {
+                    LOG_ERROR("server", "Data {}", "spell id is mining");
+                    me->ToCreature()->CallForHelp(30.0f);
+                }
+            }
+        }
+
+    };
+    GameObjectAI* GetAI(GameObject* go) const override
+    {
+        return new go_mining_veinAI(go);
+    }
 };
 
 class go_generic_chest : public GameObjectScript
@@ -64,6 +88,15 @@ class go_generic_chest : public GameObjectScript
 public:
     go_generic_chest() : GameObjectScript("go_generic_chest") { }
     
+    struct go_generic_chestAI : public GameObjectAI
+    {
+        go_generic_chestAI(GameObject* gameObject) : GameObjectAI(gameObject) { }
+
+    };
+    GameObjectAI* GetAI(GameObject* go) const override
+    {
+        return new go_generic_chestAI(go);
+    }
 };
 
 
