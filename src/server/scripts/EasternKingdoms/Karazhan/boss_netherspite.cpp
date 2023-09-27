@@ -222,7 +222,7 @@ struct boss_netherspite : public BossAI
     void SwitchToBanishPhase()
     {
         summons.DoForAllSummons([&](WorldObject* summon){
-            summon->ToCreature()->CombatStop(true);
+            summon->ToCreature()->InterruptNonMeleeSpells(true);
         });
         summons.DespawnAll();
         summons.clear();
