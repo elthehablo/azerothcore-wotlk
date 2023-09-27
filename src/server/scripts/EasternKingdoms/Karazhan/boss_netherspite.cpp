@@ -228,10 +228,7 @@ struct boss_netherspite : public BossAI
         DoCastSelf(SPELL_BANISH_VISUAL, true);
         DoCastSelf(SPELL_BANISH_ROOT, true);
 
-        for (uint32 id : PortalID)
-        {
-            summons.DespawnEntry(id);
-        }
+        summons.DespawnAll();
 
         scheduler.Schedule(30s, [this](TaskContext)
         {
