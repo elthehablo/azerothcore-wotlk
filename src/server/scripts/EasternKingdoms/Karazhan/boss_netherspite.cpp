@@ -221,15 +221,17 @@ struct boss_netherspite : public BossAI
 
     void SwitchToBanishPhase()
     {
+        summons.DoForAllSummons([&](WorldObject* summon){
+            summon->ToCreature()->CombatStop(true);
+        });
+        summons.DespawnAll();
+        summons.clear();
         Talk(EMOTE_PHASE_BANISH);
         scheduler.CancelGroup(PORTAL_PHASE);
         me->RemoveAurasDueToSpell(SPELL_EMPOWERMENT);
         me->RemoveAurasDueToSpell(SPELL_NETHERBURN_AURA);
         DoCastSelf(SPELL_BANISH_VISUAL, true);
         DoCastSelf(SPELL_BANISH_ROOT, true);
-
-        summons.DespawnAll();
-        summons.clear();
 
         scheduler.Schedule(30s, [this](TaskContext)
         {
