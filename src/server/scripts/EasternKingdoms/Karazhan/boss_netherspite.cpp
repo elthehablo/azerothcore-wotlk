@@ -229,6 +229,7 @@ struct boss_netherspite : public BossAI
         DoCastSelf(SPELL_BANISH_ROOT, true);
 
         summons.DespawnAll();
+        summons.clear();
 
         scheduler.Schedule(30s, [this](TaskContext)
         {
