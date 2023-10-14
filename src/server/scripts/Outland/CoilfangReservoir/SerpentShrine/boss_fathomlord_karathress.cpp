@@ -268,7 +268,7 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
     {
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
-            me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS);
+            me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS, true);
         }
     }
 
@@ -439,7 +439,7 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
     {
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
-            me->CastSpell(karathress, SPELL_POWER_OF_TIDALVESS);
+            me->CastSpell(karathress, SPELL_POWER_OF_TIDALVESS, true);
         }
     }
 
@@ -517,7 +517,7 @@ struct boss_fathomguard_caribdis : public ScriptedAI
     {
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
-            me->CastSpell(karathress, SPELL_POWER_OF_CARIBDIS);
+            me->CastSpell(karathress, SPELL_POWER_OF_CARIBDIS, true);
         }
     }
 
