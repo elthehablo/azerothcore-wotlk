@@ -128,13 +128,16 @@ struct boss_fathomlord_karathress : public BossAI
 
     void SummonedCreatureDies(Creature* summon, Unit*) override
     {
-        summons.Despawn(summon);
         if (summon->GetEntry() == NPC_FATHOM_GUARD_TIDALVESS)
             Talk(SAY_GAIN_ABILITY1);
         if (summon->GetEntry() == NPC_FATHOM_GUARD_SHARKKIS)
             Talk(SAY_GAIN_ABILITY2);
         if (summon->GetEntry() == NPC_FATHOM_GUARD_CARIBDIS)
             Talk(SAY_GAIN_ABILITY3);
+        scheduler.Schedule(1s, [this, summon](TaskContext)
+        {
+            summons.Despawn(summon);
+        });
     }
 
     void KilledUnit(Unit* /*victim*/) override
