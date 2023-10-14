@@ -235,6 +235,18 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
         summons.Summon(summon);
     }
 
+    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        if (damage >= me->GetHealth())
+        {
+            if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
+            {
+                me->Yell("found my master", LANG_UNIVERSAL);
+                me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS, true);
+            }
+        }
+    }
+
     void JustEngagedWith(Unit* /*who*/) override
     {
         _scheduler.Schedule(2500ms, [this](TaskContext context)
