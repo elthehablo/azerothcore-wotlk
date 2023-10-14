@@ -210,8 +210,6 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
 {
     boss_fathomguard_sharkkis(Creature* creature) : ScriptedAI(creature), summons(creature)
     {
-        summons.clear();
-
         _instance = creature->GetInstanceScript();
 
         _scheduler.SetValidator([this]
@@ -227,24 +225,13 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
         _scheduler.CancelAll();
 
         summons.DespawnAll();
+        summons.clear();
     }
 
     void JustSummoned(Creature* summon) override
     {
         summon->SetInCombatWithZone();
         summons.Summon(summon);
-    }
-
-    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
-    {
-        if (damage >= me->GetHealth())
-        {
-            if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
-            {
-                me->Yell("found my master", LANG_UNIVERSAL);
-                me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS, true);
-            }
-        }
     }
 
     void JustEngagedWith(Unit* /*who*/) override
@@ -281,8 +268,13 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
 
     void JustDied(Unit* /*killer*/) override
     {
+        if (_instance)
+        {
+            me->Yell("I have an instancescript", LANG_UNIVERSAL);
+        }
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
+            me->Yell("found my master", LANG_UNIVERSAL);
             me->CastSpell(karathress, SPELL_POWER_OF_SHARKKIS, true);
         }
     }
