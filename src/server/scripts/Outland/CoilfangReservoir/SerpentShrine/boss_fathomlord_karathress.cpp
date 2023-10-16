@@ -94,11 +94,11 @@ struct boss_fathomlord_karathress : public BossAI
         BossAI::Reset();
         _recentlySpoken = false;
 
-        //summons.DespawnAll();
+        summons.DespawnAll();
 
-        //me->SummonCreature(NPC_FATHOM_GUARD_TIDALVESS, advisorsPosition[0], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
-        //me->SummonCreature(NPC_FATHOM_GUARD_SHARKKIS, advisorsPosition[1], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
-        //me->SummonCreature(NPC_FATHOM_GUARD_CARIBDIS, advisorsPosition[2], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
+        me->SummonCreature(NPC_FATHOM_GUARD_TIDALVESS, advisorsPosition[0], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
+        me->SummonCreature(NPC_FATHOM_GUARD_SHARKKIS, advisorsPosition[1], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
+        me->SummonCreature(NPC_FATHOM_GUARD_CARIBDIS, advisorsPosition[2], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
 
         ScheduleHealthCheckEvent(75, [&]{
             for (SummonList::const_iterator itr = summons.begin(); itr != summons.end(); ++itr)
