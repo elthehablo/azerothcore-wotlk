@@ -65,16 +65,13 @@ enum Spells
 
 enum Misc
 {
-    MAX_ADVISORS                    = 3,
+    MAX_ADVISORS                    = 2,
     NPC_SEER_OLUM                   = 22820,
     GO_CAGE                         = 185952,
 };
 
-const Position advisorsPosition[MAX_ADVISORS + 2] =
+const Position advisorsPosition[MAX_ADVISORS] =
 {
-    {459.61f, -534.81f, -7.54f, 3.82f},
-    {463.83f, -540.23f, -7.54f, 3.15f},
-    {459.94f, -547.28f, -7.54f, 2.42f},
     {448.37f, -544.71f, -7.54f, 0.00f},
     {457.37f, -544.71f, -7.54f, 0.00f}
 };
@@ -93,12 +90,6 @@ struct boss_fathomlord_karathress : public BossAI
     {
         BossAI::Reset();
         _recentlySpoken = false;
-
-        summons.DespawnAll();
-
-        me->SummonCreature(NPC_FATHOM_GUARD_TIDALVESS, advisorsPosition[0], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
-        me->SummonCreature(NPC_FATHOM_GUARD_SHARKKIS, advisorsPosition[1], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
-        me->SummonCreature(NPC_FATHOM_GUARD_CARIBDIS, advisorsPosition[2], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 600000);
 
         ScheduleHealthCheckEvent(75, [&]{
             for (SummonList::const_iterator itr = summons.begin(); itr != summons.end(); ++itr)
@@ -124,7 +115,7 @@ struct boss_fathomlord_karathress : public BossAI
         if (summon->GetEntry() == NPC_SEER_OLUM)
         {
             summon->SetWalk(true);
-            summon->GetMotionMaster()->MovePoint(0, advisorsPosition[MAX_ADVISORS + 1], false);
+            summon->GetMotionMaster()->MovePoint(0, advisorsPosition[MAX_ADVISORS - 1], false);
         }
     }
 
@@ -159,7 +150,7 @@ struct boss_fathomlord_karathress : public BossAI
     {
         Talk(SAY_DEATH);
         BossAI::JustDied(killer);
-        me->SummonCreature(NPC_SEER_OLUM, advisorsPosition[MAX_ADVISORS], TEMPSUMMON_TIMED_DESPAWN, 3600000);
+        me->SummonCreature(NPC_SEER_OLUM, advisorsPosition[MAX_ADVISORS-2], TEMPSUMMON_TIMED_DESPAWN, 3600000);
         if (GameObject* gobject = me->FindNearestGameObject(GO_CAGE, 100.0f))
         {
             gobject->SetGoState(GO_STATE_ACTIVE);
