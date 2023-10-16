@@ -92,16 +92,9 @@ struct boss_fathomlord_karathress : public BossAI
         _recentlySpoken = false;
 
         ScheduleHealthCheckEvent(75, [&]{
-            for (SummonList::const_iterator itr = summons.begin(); itr != summons.end(); ++itr)
-            {
-                if (Creature* summon = ObjectAccessor::GetCreature(*me, *itr))
-                {
-                    if (summon->GetMaxHealth() > 500000)
-                    {
-                        summon->CastSpell(me, SPELL_BLESSING_OF_THE_TIDES, true);
-                    }
-                }
-            }
+            instance->DoForAllMinions(DATA_FATHOM_LORD_KARATHRESS, [&](Creature* fathomguard) {
+                fathomguard->CastSpell(me, SPELL_BLESSING_OF_THE_TIDES, true);           
+            });
             if (me->HasAura(SPELL_BLESSING_OF_THE_TIDES))
             {
                 Talk(SAY_GAIN_BLESSING);
@@ -227,8 +220,12 @@ struct boss_fathomguard_sharkkis : public ScriptedAI
         summons.Summon(summon);
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void JustEngagedWith(Unit* who) override
     {
+        if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
+        {
+            karathress->Attack(who, true);
+        }
         _scheduler.Schedule(2500ms, [this](TaskContext context)
         {
             DoCastRandomTarget(SPELL_HURL_TRIDENT);
@@ -413,6 +410,10 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
+        if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
+        {
+            karathress->Attack(who, true);
+        }
         _scheduler.Schedule(10900ms, [this](TaskContext context)
         {
             DoCastVictim(SPELL_FROST_SHOCK);
@@ -486,6 +487,10 @@ struct boss_fathomguard_caribdis : public ScriptedAI
 
     void JustEngagedWith(Unit* /*who*/) override
     {
+        if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
+        {
+            karathress->Attack(who, true);
+        }
         _scheduler.Schedule(27900ms, [this](TaskContext context)
         {
             DoCastSelf(SPELL_WATER_BOLT_VOLLEY);
