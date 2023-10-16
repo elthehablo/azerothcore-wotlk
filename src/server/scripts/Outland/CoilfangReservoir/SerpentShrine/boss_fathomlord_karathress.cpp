@@ -408,7 +408,7 @@ struct boss_fathomguard_tidalvess : public ScriptedAI
         }
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void JustEngagedWith(Unit* who) override
     {
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
@@ -485,7 +485,7 @@ struct boss_fathomguard_caribdis : public ScriptedAI
         summons.Summon(summon);
     }
 
-    void JustEngagedWith(Unit* /*who*/) override
+    void JustEngagedWith(Unit* who) override
     {
         if (Creature* karathress = _instance->GetCreature(DATA_FATHOM_LORD_KARATHRESS))
         {
