@@ -224,6 +224,16 @@ struct boss_leotheras_the_blind : public BossAI
             me->setAttackTimer(BASE_ATTACK, 2000);
         }
     }
+
+    void DamageTaken(Unit* doneBy, uint32& damage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask) override
+    {
+        BossAI::DamageTaken(doneBy, damage, damagetype, damageSchoolMask);
+
+        if (damageSchoolMask == SPELL_SCHOOL_MASK_FIRE && damagetype == SPELL_DIRECT_DAMAGE)
+        {
+            me->AddThreat(doneBy, 500.0f);
+        }
+    }
 private:
     bool _recentlySpoken;
 };
