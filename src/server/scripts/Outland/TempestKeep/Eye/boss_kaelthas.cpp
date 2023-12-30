@@ -93,6 +93,13 @@ enum Spells
     SPELL_PURE_NETHER_BEAM1             = 36196,
     SPELL_PURE_NETHER_BEAM2             = 36197,
     SPELL_PURE_NETHER_BEAM3             = 36198,
+    SPELL_PURE_NETHER_BEAM4             = 36201,
+    SPELL_PURE_NETHER_BEAM5             = 36290,
+    SPELL_PURE_NETHER_BEAM6             = 36291,
+
+    SPELL_DARK_BANISHED_STATE           = 52241, //wrong visual apparently - sniffs?
+    SPELL_ARCANE_EXPLOSION_VISUAL       = 34807,
+    SPELL_KAEL_PHASE_TWO                = 36709,
 
     // Phase 5 spells
     SPELL_GRAVITY_LAPSE                 = 35941,
@@ -181,546 +188,577 @@ const Position triggersPos[6] =
     {843.35f, 6.35f, 67.14f, 0.0f}
 };
 
-class boss_kaelthas : public CreatureScript
+struct boss_kaelthas : public BossAI
 {
-public:
-    boss_kaelthas() : CreatureScript("boss_kaelthas") { }
-
-    struct boss_kaelthasAI : public BossAI
+    boss_kaelthas(Creature* creature) : BossAI(creature, DATA_KAELTHAS)
     {
-        boss_kaelthasAI(Creature* creature) : BossAI(creature, DATA_KAELTHAS) { }
+        scheduler.SetValidator([this]{
+            return me->HasUnitState(UNIT_STATE_CASTING);
+        });
+    }
 
-        uint8 phase;
-        EventMap events2;
+    uint8 phase;
+    EventMap events2;
 
-        void PrepareAdvisors()
+    void PrepareAdvisors()
+    {
+        for (uint8 i = DATA_KAEL_ADVISOR1; i <= DATA_KAEL_ADVISOR4; ++i)
+            if (Creature* advisor = ObjectAccessor::GetCreature(*me, instance->GetGuidData(i)))
+            {
+                advisor->Respawn(true);
+                advisor->StopMovingOnCurrentPos();
+                advisor->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                advisor->SetReactState(REACT_PASSIVE);
+                summons.Summon(advisor);
+            }
+    }
+
+    void SetData(uint32 type, uint32 data) override
+    {
+        if (type == DATA_RESURRECT_CAST && data == DATA_RESURRECT_CAST)
         {
-            for (uint8 i = DATA_KAEL_ADVISOR1; i <= DATA_KAEL_ADVISOR4; ++i)
-                if (Creature* advisor = ObjectAccessor::GetCreature(*me, instance->GetGuidData(i)))
+            for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
+            {
+                if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
                 {
-                    advisor->Respawn(true);
-                    advisor->StopMovingOnCurrentPos();
-                    advisor->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    advisor->SetReactState(REACT_PASSIVE);
-                    summons.Summon(advisor);
+                    if (summon->GetSpawnId())
+                    {
+                        summon->SetReactState(REACT_PASSIVE);
+                        summon->setDeathState(DeathState::JustRespawned);
+                        summon->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                    }
                 }
+            }
+        }
+    }
+
+    void SetRoomState(GOState state)
+    {
+        if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_BRIDGE_WINDOW)))
+            window->SetGoState(state);
+        if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_KAEL_STATUE_RIGHT)))
+            window->SetGoState(state);
+        if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_KAEL_STATUE_LEFT)))
+            window->SetGoState(state);
+    }
+
+    void Reset() override
+    {
+        BossAI::Reset();
+        _rpScheduler.CancelAll();
+        _rpScheduler.Schedule(1s, [this](TaskContext)
+        {
+            PrepareAdvisors();
+        });
+
+        phase = PHASE_NONE;
+
+        me->ApplySpellImmune(0, IMMUNITY_STATE, SPELL_AURA_HOVER, true);
+        me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+        me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
+        SetRoomState(GO_STATE_READY);
+        me->SetDisableGravity(false);
+        me->SetWalk(false);
+    }
+
+    void AttackStart(Unit* who) override
+    {
+        if (phase == PHASE_FINAL && events.GetNextEventTime(EVENT_GRAVITY_LAPSE_END) == 0)
+            BossAI::AttackStart(who);
+    }
+
+    void MoveInLineOfSight(Unit* who) override
+    {
+        if (phase == PHASE_NONE && who->GetTypeId() == TYPEID_PLAYER && me->IsValidAttackTarget(who))
+        {
+            phase = PHASE_SINGLE_ADVISOR;
+            me->SetInCombatWithZone();
+            Talk(SAY_INTRO);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE11, 23000);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE12, 30000);
+        }
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        BossAI::JustEngagedWith(who);
+    }
+
+    void KilledUnit(Unit* victim) override
+    {
+        if (victim->GetTypeId() == TYPEID_PLAYER)
+            Talk(SAY_SLAY);
+    }
+
+    void JustSummoned(Creature* summon) override
+    {
+        summons.Summon(summon);
+        if (summon->GetEntry() == NPC_NETHER_VAPOR)
+            summon->GetMotionMaster()->MoveRandom(20.0f);
+    }
+
+    void SummonedCreatureDies(Creature* summon, Unit*) override
+    {
+        if (phase == PHASE_FINAL)
+            return;
+
+        if (summon->GetSpawnId() && phase == PHASE_ALL_ADVISORS)
+        {
+            for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
+                if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
+                    if (summon->GetSpawnId() && summon->IsAlive())
+                        return;
+
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 2000);
+            return;
         }
 
-        void SetData(uint32 type, uint32 data) override
+        if (summon->GetEntry() == NPC_THALADRED)
         {
-            if (type == DATA_RESURRECT_CAST && data == DATA_RESURRECT_CAST)
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE21, 2000);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE22, 14500);
+        }
+        else if (summon->GetEntry() == NPC_LORD_SANGUINAR)
+        {
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE31, 2000);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE32, 9000);
+        }
+        else if (summon->GetEntry() == NPC_CAPERNIAN)
+        {
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE41, 2000);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE42, 10400);
+        }
+        else if (summon->GetEntry() == NPC_TELONICUS)
+        {
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE51, 3000);
+            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE52, 9000);
+        }
+    }
+
+    void JustDied(Unit* killer) override
+    {
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+
+        Talk(SAY_DEATH);
+        BossAI::JustDied(killer);
+    }
+
+    void MovementInform(uint32 type, uint32 point) override
+    {
+        if (type != POINT_MOTION_TYPE)
+            return;
+
+        if (point == POINT_MIDDLE)
+        {
+            ScheduleUniqueTimedEvent(0s, [&]
             {
+                me->SetTarget();
+                me->SetFacingTo(M_PI);
+                me->SetWalk(true);
+                Talk(SAY_PHASE5_NUTS);
+            }, EVENT_SCENE_1);
+            ScheduleUniqueTimedEvent(2500ms, [&]
+            {
+                me->SetTarget();
+                DoCastSelf(SPELL_KAEL_EXPLODES1, true);
+                DoCastSelf(SPELL_KAEL_GAINING_POWER, true);
+                me->SetDisableGravity(true);
+            }, EVENT_SCENE_2);
+            ScheduleUniqueTimedEvent(4s, [&]
+            {
+                me->SetTarget();
+                for (uint8 i = 0; i < 2; ++i)
+                {
+                    if (Creature* trigger = me->SummonCreature                      (WORLD_TRIGGER, triggersPos[i], TEMPSUMMON_TIMED_DESPAWN, 60000))
+                    {
+                        trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
+                    }
+                }
+                me->GetMotionMaster()->MovePoint(POINT_AIR, me->GetPositionX(), me->GetPositionY(), 76.0f, false, true);
+                DoCastSelf(SPELL_GROW, true);
+            }, EVENT_SCENE_3);
+            ScheduleUniqueTimedEvent(7s, [&]
+            {
+                me->SetTarget();
+                DoCastSelf(SPELL_GROW, true);
+                DoCastSelf(SPELL_KAEL_EXPLODES2, true);
+                DoCastSelf(SPELL_NETHERBEAM_AURA1, true);
+                for (uint8 i = 0; i < 2; ++i)
+                {
+                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i + 2], TEMPSUMMON_TIMED_DESPAWN, 60000))
+                    {
+                        trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
+                    }
+                }
+            }, EVENT_SCENE_4);
+            ScheduleUniqueTimedEvent(10s, [&]
+            {
+                me->SetTarget();
+                DoCastSelf(SPELL_GROW, true);
+                DoCastSelf(SPELL_KAEL_EXPLODES3, true);
+                DoCastSelf(SPELL_NETHERBEAM_AURA2, true);
+                for (uint8 i = 0; i < 2; ++i)
+                {
+                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i + 4], TEMPSUMMON_TIMED_DESPAWN, 60000))
+                    {
+                        trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
+                    }
+                }
+            }, EVENT_SCENE_5);
+            ScheduleUniqueTimedEvent(14s, [&]
+            {
+                DoCastSelf(SPELL_GROW, true);
+                DoCastSelf(SPELL_KAEL_EXPLODES4, true);
+                DoCastSelf(SPELL_NETHERBEAM_AURA3, true);
+            }, EVENT_SCENE_6);
+            ScheduleUniqueTimedEvent(17500ms, [&]
+            {
+                SetRoomState(GO_STATE_ACTIVE);
+                me->SetUnitMovementFlags(MOVEMENTFLAG_HOVER | MOVEMENTFLAG_WALKING | MOVEMENTFLAG_DISABLE_GRAVITY);
+                me->SendMovementFlagUpdate();
+            }, EVENT_SCENE_7);
+            ScheduleUniqueTimedEvent(19s, [&]
+            {
+                summons.DespawnEntry(WORLD_TRIGGER);
+                me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA1);
+                me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA2);
+                me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA3);
+                DoCastSelf(SPELL_KAEL_EXPLODES5, true);
+                DoCastSelf(SPELL_FLOATING_DROWNED, true);
+                //DoCastSelf(SPELL_KEAL_STUNNED, true);
+            }, EVENT_SCENE_8);
+            ScheduleUniqueTimedEvent(22s, [&]
+            {
+                DoCastSelf(SPELL_DARK_BANISHED_STATE, true);
+                DoCastSelf(SPELL_ARCANE_EXPLOSION_VISUAL, true);
+                me->SummonCreature(NPC_WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000);
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
+                }
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
+                }
+            }, EVENT_SCENE_9);
+            ScheduleUniqueTimedEvent(22800ms, [&]
+            {
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
+                }
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
+                }
+            }, EVENT_SCENE_10);
+            ScheduleUniqueTimedEvent(23600ms, [&]
+            {
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
+                }
+            }, EVENT_SCENE_11);
+            ScheduleUniqueTimedEvent(24500ms, [&]
+            {
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
+                }
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
+                }
+            }, EVENT_SCENE_12);
+            ScheduleUniqueTimedEvent(24800ms, [&]
+            {
+                if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                {
+                    trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
+                }
+            }, EVENT_SCENE_13);
+            ScheduleUniqueTimedEvent(25300ms, [&]
+            {
+                //if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX()-5, me->GetPositionY()+5, me->GetPositionZ()+15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
+                //{
+                //  trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
+                //}
+            }, EVENT_SCENE_14);
+            ScheduleUniqueTimedEvent(32s, [&]
+            {
+                me->RemoveAurasDueToSpell(SPELL_FLOATING_DROWNED);
+                me->RemoveAurasDueToSpell(SPELL_KEAL_STUNNED);
+                DoCastSelf(SPELL_KAEL_FULL_POWER, true);
+                DoCastSelf(SPELL_KAEL_PHASE_TWO, true);
+                DoCastSelf(SPELL_PURE_NETHER_BEAM4, true);
+                DoCastSelf(SPELL_PURE_NETHER_BEAM5, true);
+                DoCastSelf(SPELL_PURE_NETHER_BEAM6, true);
+                me->SetUnitMovementFlags(MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_WALKING);
+                me->SendMovementFlagUpdate();
+            }, EVENT_SCENE_15);
+            ScheduleUniqueTimedEvent(36s, [&]
+            {
+                summons.DespawnEntry(WORLD_TRIGGER);
+                me->RemoveAurasDueToSpell(SPELL_DARK_BANISHED_STATE);
+                me->GetMotionMaster()->MovePoint(POINT_START_LAST_PHASE, me->GetHomePosition(), false, true);
+            }, EVENT_SCENE_16);
+        }
+        else if (point == POINT_START_LAST_PHASE)
+        {
+            me->SetDisableGravity(false);
+            me->SetWalk(false);
+            me->RemoveAurasDueToSpell(SPELL_KAEL_FULL_POWER);
+            me->SetReactState(REACT_AGGRESSIVE);
+            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+            events.SetTimer(60000);
+            events.ScheduleEvent(EVENT_SPELL_FIREBALL, 0);
+            events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 10000);
+            events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 20000);
+            events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 5000);
+            if (me->GetVictim())
+            {
+                me->SetTarget(me->GetVictim()->GetGUID());
+                AttackStart(me->GetVictim());
+            }
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        events2.Update(diff);
+        switch (events2.ExecuteEvent())
+        {
+            case EVENT_PREFIGHT_PHASE11:
+                Talk(SAY_INTRO_THALADRED);
+                break;
+            case EVENT_PREFIGHT_PHASE12:
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_THALADRED))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_THALADRED_AGGRO);
+                }
+                break;
+            case EVENT_PREFIGHT_PHASE21:
+                Talk(SAY_INTRO_SANGUINAR);
+                break;
+            case EVENT_PREFIGHT_PHASE22:
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_LORD_SANGUINAR))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_SANGUINAR_AGGRO);
+                }
+                break;
+            case EVENT_PREFIGHT_PHASE31:
+                Talk(SAY_INTRO_CAPERNIAN);
+                break;
+            case EVENT_PREFIGHT_PHASE32:
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_CAPERNIAN))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_CAPERNIAN_AGGRO);
+                }
+                break;
+            case EVENT_PREFIGHT_PHASE41:
+                Talk(SAY_INTRO_TELONICUS);
+                break;
+            case EVENT_PREFIGHT_PHASE42:
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_TELONICUS))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_TELONICUS_AGGRO);
+                }
+                break;
+            case EVENT_PREFIGHT_PHASE51:
+                Talk(SAY_PHASE2_WEAPON);
+                me->CastSpell(me, SPELL_SUMMON_WEAPONS, false);
+                phase = PHASE_WEAPONS;
+                break;
+            case EVENT_PREFIGHT_PHASE52:
+                for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
+                {
+                    if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
+                        if (!summon->GetSpawnId())
+                        {
+                            summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                            summon->SetInCombatWithZone();
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                                summon->AI()->AttackStart(target);
+                        }
+                }
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
+                break;
+            case EVENT_PREFIGHT_PHASE61:
+                phase = PHASE_ALL_ADVISORS;
+                Talk(SAY_PHASE3_ADVANCE);
+                break;
+            case EVENT_PREFIGHT_PHASE62:
+                me->CastSpell(me, SPELL_RESURRECTION, false);
+                break;
+            case EVENT_PREFIGHT_PHASE63:
                 for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
                     if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
                         if (summon->GetSpawnId())
                         {
-                            summon->SetReactState(REACT_PASSIVE);
-                            summon->setDeathState(DeathState::JustRespawned);
-                            summon->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                            summon->SetReactState(REACT_AGGRESSIVE);
+                            summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                            summon->SetInCombatWithZone();
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                                summon->AI()->AttackStart(target);
                         }
-            }
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 3 * MINUTE * IN_MILLISECONDS);
+                break;
+            case EVENT_PREFIGHT_PHASE71:
+                events2.CancelEvent(EVENT_PREFIGHT_PHASE71);
+                Talk(SAY_PHASE4_INTRO2);
+                phase = PHASE_FINAL;
+                DoResetThreatList();
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                    AttackStart(target);
+
+                events2.Reset();
+                events.Reset();
+                events.ScheduleEvent(EVENT_SPELL_FIREBALL, 1000);
+                events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 15000);
+                events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 30000);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_1, 20000);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_2, 40000);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_3, 60000);
+                events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
+                break;
         }
 
-        void SetRoomState(GOState state)
+        if (!events2.Empty())
+            return;
+
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        switch (events.ExecuteEvent())
         {
-            if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_BRIDGE_WINDOW)))
-                window->SetGoState(state);
-            if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_KAEL_STATUE_RIGHT)))
-                window->SetGoState(state);
-            if (GameObject* window = ObjectAccessor::GetGameObject(*me, instance->GetGuidData(GO_KAEL_STATUE_LEFT)))
-                window->SetGoState(state);
-        }
-
-        void Reset() override
-        {
-            BossAI::Reset();
-            events2.Reset();
-            events2.ScheduleEvent(EVENT_GATHER_ADVISORS, 1000);
-            phase = PHASE_NONE;
-
-            me->ApplySpellImmune(0, IMMUNITY_STATE, SPELL_AURA_HOVER, true);
-            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
-            SetRoomState(GO_STATE_READY);
-            me->SetDisableGravity(false);
-            me->SetWalk(false);
-        }
-
-        void AttackStart(Unit* who) override
-        {
-            if (phase == PHASE_FINAL && events.GetNextEventTime(EVENT_GRAVITY_LAPSE_END) == 0)
-                BossAI::AttackStart(who);
-        }
-
-        void MoveInLineOfSight(Unit* who) override
-        {
-            if (phase == PHASE_NONE && who->GetTypeId() == TYPEID_PLAYER && me->IsValidAttackTarget(who))
-            {
-                phase = PHASE_SINGLE_ADVISOR;
-                me->SetInCombatWithZone();
-                Talk(SAY_INTRO);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE11, 23000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE12, 30000);
-            }
-        }
-
-        void JustEngagedWith(Unit* who) override
-        {
-            BossAI::JustEngagedWith(who);
-        }
-
-        void KilledUnit(Unit* victim) override
-        {
-            if (victim->GetTypeId() == TYPEID_PLAYER)
-                Talk(SAY_SLAY);
-        }
-
-        void JustSummoned(Creature* summon) override
-        {
-            summons.Summon(summon);
-            if (summon->GetEntry() == NPC_NETHER_VAPOR)
-                summon->GetMotionMaster()->MoveRandom(20.0f);
-        }
-
-        void SummonedCreatureDies(Creature* summon, Unit*) override
-        {
-            if (phase == PHASE_FINAL)
-                return;
-
-            if (summon->GetSpawnId() && phase == PHASE_ALL_ADVISORS)
-            {
-                for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                    if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                        if (summon->GetSpawnId() && summon->IsAlive())
-                            return;
-
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 2000);
-                return;
-            }
-
-            if (summon->GetEntry() == NPC_THALADRED)
-            {
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE21, 2000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE22, 14500);
-            }
-            else if (summon->GetEntry() == NPC_LORD_SANGUINAR)
-            {
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE31, 2000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE32, 9000);
-            }
-            else if (summon->GetEntry() == NPC_CAPERNIAN)
-            {
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE41, 2000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE42, 10400);
-            }
-            else if (summon->GetEntry() == NPC_TELONICUS)
-            {
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE51, 3000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE52, 9000);
-            }
-        }
-
-        void JustDied(Unit* killer) override
-        {
-            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
-
-            Talk(SAY_DEATH);
-            BossAI::JustDied(killer);
-        }
-
-        void MovementInform(uint32 type, uint32 point) override
-        {
-            if (type != POINT_MOTION_TYPE)
-                return;
-
-            if (point == POINT_MIDDLE)
-            {
-                events2.ScheduleEvent(EVENT_SCENE_1, 0);
-                events2.ScheduleEvent(EVENT_SCENE_2, 2500);
-                events2.ScheduleEvent(EVENT_SCENE_3, 4000);
-                events2.ScheduleEvent(EVENT_SCENE_4, 7000);
-                events2.ScheduleEvent(EVENT_SCENE_5, 10000);
-                events2.ScheduleEvent(EVENT_SCENE_6, 14000);
-                events2.ScheduleEvent(EVENT_SCENE_7, 17500);
-                events2.ScheduleEvent(EVENT_SCENE_8, 19000);
-                events2.ScheduleEvent(EVENT_SCENE_9, 22000); // two first lightnings + aura
-                events2.ScheduleEvent(EVENT_SCENE_10, 22800); // two
-                events2.ScheduleEvent(EVENT_SCENE_11, 23600); // two
-                events2.ScheduleEvent(EVENT_SCENE_12, 24500); // two
-                events2.ScheduleEvent(EVENT_SCENE_13, 24800); // two
-                events2.ScheduleEvent(EVENT_SCENE_14, 25300); // two
-                events2.ScheduleEvent(EVENT_SCENE_15, 32000); // full power
-                events2.ScheduleEvent(EVENT_SCENE_16, 36000); // remove lightnings + aura, move down
-            }
-            else if (point == POINT_START_LAST_PHASE)
-            {
-                me->SetDisableGravity(false);
-                me->SetWalk(false);
-                me->RemoveAurasDueToSpell(SPELL_KAEL_FULL_POWER);
-                me->SetReactState(REACT_AGGRESSIVE);
-                me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-                events.SetTimer(60000);
-                events.ScheduleEvent(EVENT_SPELL_FIREBALL, 0);
-                events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 10000);
-                events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 20000);
-                events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 5000);
-                if (me->GetVictim())
+            case EVENT_SPELL_SEQ_1:
+                events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 0);
+                events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 3000);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_1, 50000);
+                break;
+            case EVENT_SPELL_SEQ_2:
+                events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 3000);
+                events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 6000);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_2, 50000);
+                break;
+            case EVENT_SPELL_SEQ_3:
+                Talk(SAY_PYROBLAST);
+                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
+                events.ScheduleEvent(EVENT_SPELL_SEQ_3, 50000);
+                events.DelayEvents(10000);
+                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 0);
+                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 4000);
+                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 8000);
+                break;
+            case EVENT_SPELL_SHOCK_BARRIER:
+                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
+                break;
+            case EVENT_SPELL_FIREBALL:
+                me->CastSpell(me->GetVictim(), SPELL_FIREBALL, false);
+                events.ScheduleEvent(EVENT_SPELL_FIREBALL, roll_chance_i(70) ? 2000 : 4000);
+                break;
+            case EVENT_SPELL_PYROBLAST:
+                me->CastSpell(me->GetVictim(), SPELL_PYROBLAST, false);
+                break;
+            case EVENT_SPELL_FLAMESTRIKE:
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
+                    me->CastSpell(target, SPELL_FLAME_STRIKE, false);
+                events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 20000);
+                break;
+            case EVENT_SPELL_ARCANE_DISRUPTION:
+                me->CastSpell(me, SPELL_ARCANE_DISRUPTION, false);
+                break;
+            case EVENT_SPELL_MIND_CONTROL:
+                if (roll_chance_i(50))
+                    Talk(SAY_MINDCONTROL);
+                me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
+                break;
+            case EVENT_SPELL_SUMMON_PHOENIX:
+                Talk(SAY_SUMMON_PHOENIX);
+                me->CastSpell(me, SPELL_PHOENIX, false);
+                events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 40000);
+                break;
+            case EVENT_CHECK_HEALTH:
+                if (me->HealthBelowPct(51))
                 {
-                    me->SetTarget(me->GetVictim()->GetGUID());
-                    AttackStart(me->GetVictim());
-                }
-            }
-        }
-
-        void UpdateAI(uint32 diff) override
-        {
-            events2.Update(diff);
-            switch (events2.ExecuteEvent())
-            {
-                case EVENT_GATHER_ADVISORS:
-                    PrepareAdvisors();
-                    break;
-                case EVENT_PREFIGHT_PHASE11:
-                    Talk(SAY_INTRO_THALADRED);
-                    break;
-                case EVENT_PREFIGHT_PHASE12:
-                    if (Creature* advisor = summons.GetCreatureWithEntry(NPC_THALADRED))
-                    {
-                        advisor->SetReactState(REACT_AGGRESSIVE);
-                        advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                            advisor->AI()->AttackStart(target);
-                        advisor->SetInCombatWithZone();
-                        advisor->AI()->Talk(SAY_THALADRED_AGGRO);
-                    }
-                    break;
-                case EVENT_PREFIGHT_PHASE21:
-                    Talk(SAY_INTRO_SANGUINAR);
-                    break;
-                case EVENT_PREFIGHT_PHASE22:
-                    if (Creature* advisor = summons.GetCreatureWithEntry(NPC_LORD_SANGUINAR))
-                    {
-                        advisor->SetReactState(REACT_AGGRESSIVE);
-                        advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                            advisor->AI()->AttackStart(target);
-                        advisor->SetInCombatWithZone();
-                        advisor->AI()->Talk(SAY_SANGUINAR_AGGRO);
-                    }
-                    break;
-                case EVENT_PREFIGHT_PHASE31:
-                    Talk(SAY_INTRO_CAPERNIAN);
-                    break;
-                case EVENT_PREFIGHT_PHASE32:
-                    if (Creature* advisor = summons.GetCreatureWithEntry(NPC_CAPERNIAN))
-                    {
-                        advisor->SetReactState(REACT_AGGRESSIVE);
-                        advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                            advisor->AI()->AttackStart(target);
-                        advisor->SetInCombatWithZone();
-                        advisor->AI()->Talk(SAY_CAPERNIAN_AGGRO);
-                    }
-                    break;
-                case EVENT_PREFIGHT_PHASE41:
-                    Talk(SAY_INTRO_TELONICUS);
-                    break;
-                case EVENT_PREFIGHT_PHASE42:
-                    if (Creature* advisor = summons.GetCreatureWithEntry(NPC_TELONICUS))
-                    {
-                        advisor->SetReactState(REACT_AGGRESSIVE);
-                        advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                            advisor->AI()->AttackStart(target);
-                        advisor->SetInCombatWithZone();
-                        advisor->AI()->Talk(SAY_TELONICUS_AGGRO);
-                    }
-                    break;
-                case EVENT_PREFIGHT_PHASE51:
-                    Talk(SAY_PHASE2_WEAPON);
-                    me->CastSpell(me, SPELL_SUMMON_WEAPONS, false);
-                    phase = PHASE_WEAPONS;
-                    break;
-                case EVENT_PREFIGHT_PHASE52:
-                    for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                    {
-                        if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                            if (!summon->GetSpawnId())
-                            {
-                                summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-                                summon->SetInCombatWithZone();
-                                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                                    summon->AI()->AttackStart(target);
-                            }
-                    }
-                    events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
-                    events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
-                    events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
-                    break;
-                case EVENT_PREFIGHT_PHASE61:
-                    phase = PHASE_ALL_ADVISORS;
-                    Talk(SAY_PHASE3_ADVANCE);
-                    break;
-                case EVENT_PREFIGHT_PHASE62:
-                    me->CastSpell(me, SPELL_RESURRECTION, false);
-                    break;
-                case EVENT_PREFIGHT_PHASE63:
-                    for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                        if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                            if (summon->GetSpawnId())
-                            {
-                                summon->SetReactState(REACT_AGGRESSIVE);
-                                summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                                summon->SetInCombatWithZone();
-                                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                                    summon->AI()->AttackStart(target);
-                            }
-                    events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 3 * MINUTE * IN_MILLISECONDS);
-                    break;
-                case EVENT_PREFIGHT_PHASE71:
-                    events2.CancelEvent(EVENT_PREFIGHT_PHASE71);
-                    Talk(SAY_PHASE4_INTRO2);
-                    phase = PHASE_FINAL;
-                    DoResetThreatList();
-                    me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        AttackStart(target);
-
-                    events2.Reset();
                     events.Reset();
-                    events.ScheduleEvent(EVENT_SPELL_FIREBALL, 1000);
-                    events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 15000);
-                    events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 30000);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_1, 20000);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_2, 40000);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_3, 60000);
-                    events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
+                    me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    me->SetReactState(REACT_PASSIVE);
+                    me->GetMotionMaster()->MovePoint(POINT_MIDDLE, me->GetHomePosition(), true, true);
+                    me->ClearUnitState(UNIT_STATE_MELEE_ATTACKING);
+                    me->SendMeleeAttackStop();
                     break;
-                case EVENT_SCENE_1:
-                    me->SetTarget();
-                    me->SetFacingTo(M_PI);
-                    me->SetWalk(true);
-                    Talk(SAY_PHASE5_NUTS);
-                    break;
-                case EVENT_SCENE_2:
-                    me->SetTarget();
-                    me->CastSpell(me, SPELL_KAEL_EXPLODES1, true);
-                    me->CastSpell(me, SPELL_KAEL_GAINING_POWER, false);
-                    me->SetDisableGravity(true);
-                    break;
-                case EVENT_SCENE_3:
-                    me->SetTarget();
-                    for (uint8 i = 0; i < 2; ++i)
-                        if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i], TEMPSUMMON_TIMED_DESPAWN, 60000))
-                            trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
-                    me->GetMotionMaster()->MovePoint(POINT_AIR, me->GetPositionX(), me->GetPositionY(), 76.0f, false, true);
-                    me->CastSpell(me, SPELL_GROW, true);
-                    break;
-                case EVENT_SCENE_4:
-                    me->SetTarget();
-                    me->CastSpell(me, SPELL_GROW, true);
-                    me->CastSpell(me, SPELL_KAEL_EXPLODES2, true);
-                    me->CastSpell(me, SPELL_NETHERBEAM_AURA1, true);
-                    for (uint8 i = 0; i < 2; ++i)
-                        if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i + 2], TEMPSUMMON_TIMED_DESPAWN, 60000))
-                            trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
-                    break;
-                case EVENT_SCENE_5:
-                    me->SetTarget();
-                    me->CastSpell(me, SPELL_GROW, true);
-                    me->CastSpell(me, SPELL_KAEL_EXPLODES3, true);
-                    me->CastSpell(me, SPELL_NETHERBEAM_AURA2, true);
-                    for (uint8 i = 0; i < 2; ++i)
-                        if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i + 4], TEMPSUMMON_TIMED_DESPAWN, 60000))
-                            trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
-                    break;
-                case EVENT_SCENE_6:
-                    me->CastSpell(me, SPELL_GROW, true);
-                    me->CastSpell(me, SPELL_KAEL_EXPLODES4, true);
-                    me->CastSpell(me, SPELL_NETHERBEAM_AURA3, true);
-                    break;
-                case EVENT_SCENE_7:
-                    SetRoomState(GO_STATE_ACTIVE);
-                    me->SetUnitMovementFlags(MOVEMENTFLAG_HOVER | MOVEMENTFLAG_WALKING | MOVEMENTFLAG_DISABLE_GRAVITY);
-                    me->SendMovementFlagUpdate();
-                    break;
-                case EVENT_SCENE_8:
-                    summons.DespawnEntry(WORLD_TRIGGER);
-                    me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA1);
-                    me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA2);
-                    me->RemoveAurasDueToSpell(SPELL_NETHERBEAM_AURA3);
-                    me->CastSpell(me, SPELL_KAEL_EXPLODES5, true);
-                    me->CastSpell(me, SPELL_FLOATING_DROWNED, false);
-                    //me->CastSpell(me, SPELL_KEAL_STUNNED, true);
-                    break;
-                case EVENT_SCENE_9:
-                    me->CastSpell(me, 52241, true); // WRONG VISUAL
-                    me->CastSpell(me, 34807, true);
-                    me->SummonCreature(NPC_WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000);
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY(), me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
-                    break;
-                case EVENT_SCENE_10:
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
-                    break;
-                case EVENT_SCENE_11:
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
-                    break;
-                case EVENT_SCENE_12:
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX(), me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() + 5, me->GetPositionY() - 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM1, true);
-                    break;
-                case EVENT_SCENE_13:
-                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX() - 5, me->GetPositionY() + 5, me->GetPositionZ() + 15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                        trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM2, true);
-                    break;
-                case EVENT_SCENE_14:
-                    //if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, me->GetPositionX()-5, me->GetPositionY()+5, me->GetPositionZ()+15.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 60000))
-                    //  trigger->CastSpell(me, SPELL_PURE_NETHER_BEAM3, true);
-                    break;
-                case EVENT_SCENE_15:
-                    me->RemoveAurasDueToSpell(SPELL_FLOATING_DROWNED);
-                    me->RemoveAurasDueToSpell(SPELL_KEAL_STUNNED);
-                    me->CastSpell(me, SPELL_KAEL_FULL_POWER, false);
-                    me->CastSpell(me, 36709, true);
-                    me->CastSpell(me, 36201, true);
-                    me->CastSpell(me, 36290, true);
-                    me->CastSpell(me, 36291, true);
-                    me->SetUnitMovementFlags(MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_WALKING);
-                    me->SendMovementFlagUpdate();
-                    break;
-                case EVENT_SCENE_16:
-                    summons.DespawnEntry(WORLD_TRIGGER);
-                    me->RemoveAurasDueToSpell(52241); // WRONG VISUAL
-                    me->GetMotionMaster()->MovePoint(POINT_START_LAST_PHASE, me->GetHomePosition(), false, true);
-                    break;
-            }
-
-            if (!events2.Empty())
-                return;
-
-            if (!UpdateVictim())
-                return;
-
-            events.Update(diff);
-            if (me->HasUnitState(UNIT_STATE_CASTING))
-                return;
-
-            switch (events.ExecuteEvent())
-            {
-                case EVENT_SPELL_SEQ_1:
-                    events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 0);
-                    events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 3000);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_1, 50000);
-                    break;
-                case EVENT_SPELL_SEQ_2:
-                    events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 3000);
-                    events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 6000);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_2, 50000);
-                    break;
-                case EVENT_SPELL_SEQ_3:
-                    Talk(SAY_PYROBLAST);
-                    me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                    events.ScheduleEvent(EVENT_SPELL_SEQ_3, 50000);
-                    events.DelayEvents(10000);
-                    events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 0);
-                    events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 4000);
-                    events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 8000);
-                    break;
-                case EVENT_SPELL_SHOCK_BARRIER:
-                    me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                    break;
-                case EVENT_SPELL_FIREBALL:
-                    me->CastSpell(me->GetVictim(), SPELL_FIREBALL, false);
-                    events.ScheduleEvent(EVENT_SPELL_FIREBALL, roll_chance_i(70) ? 2000 : 4000);
-                    break;
-                case EVENT_SPELL_PYROBLAST:
-                    me->CastSpell(me->GetVictim(), SPELL_PYROBLAST, false);
-                    break;
-                case EVENT_SPELL_FLAMESTRIKE:
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
-                        me->CastSpell(target, SPELL_FLAME_STRIKE, false);
-                    events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 20000);
-                    break;
-                case EVENT_SPELL_ARCANE_DISRUPTION:
-                    me->CastSpell(me, SPELL_ARCANE_DISRUPTION, false);
-                    break;
-                case EVENT_SPELL_MIND_CONTROL:
-                    if (roll_chance_i(50))
-                        Talk(SAY_MINDCONTROL);
-                    me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                    break;
-                case EVENT_SPELL_SUMMON_PHOENIX:
-                    Talk(SAY_SUMMON_PHOENIX);
-                    me->CastSpell(me, SPELL_PHOENIX, false);
-                    events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 40000);
-                    break;
-                case EVENT_CHECK_HEALTH:
-                    if (me->HealthBelowPct(51))
-                    {
-                        events.Reset();
-                        me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                        me->SetReactState(REACT_PASSIVE);
-                        me->GetMotionMaster()->MovePoint(POINT_MIDDLE, me->GetHomePosition(), true, true);
-                        me->ClearUnitState(UNIT_STATE_MELEE_ATTACKING);
-                        me->SendMeleeAttackStop();
-                        break;
-                    }
-                    events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
-                    break;
-                case EVENT_SPELL_GRAVITY_LAPSE:
-                    events.DelayEvents(30000);
-                    me->setAttackTimer(BASE_ATTACK, 30000);
-                    events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 90000);
-                    events.ScheduleEvent(EVENT_GRAVITY_LAPSE_END, 32000);
-                    events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 20000);
-                    events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 10000);
-                    events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
-                    events.ScheduleEvent(EVENT_SPELL_NETHER_VAPOR, 0);
-                    me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                    me->CastSpell(me, SPELL_GRAVITY_LAPSE, false);
-                    me->SetTarget();
-                    me->GetMotionMaster()->Clear();
-                    me->StopMoving();
-                    Talk(SAY_GRAVITYLAPSE);
-                    break;
-                case EVENT_SPELL_NETHER_VAPOR:
-                    me->CastSpell(me, SPELL_SUMMON_NETHER_VAPOR, false);
-                    break;
-                case EVENT_SPELL_NETHER_BEAM:
-                    me->CastSpell(me, SPELL_NETHER_BEAM, false);
-                    events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
-                    break;
-                case EVENT_GRAVITY_LAPSE_END:
-                    summons.DespawnEntry(NPC_NETHER_VAPOR);
-                    events.CancelEvent(EVENT_SPELL_NETHER_BEAM);
-                    me->SetTarget(me->GetVictim()->GetGUID());
-                    me->GetMotionMaster()->MoveChase(me->GetVictim());
-                    break;
-            }
-
-            DoMeleeAttackIfReady();
+                }
+                events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
+                break;
+            case EVENT_SPELL_GRAVITY_LAPSE:
+                events.DelayEvents(30000);
+                me->setAttackTimer(BASE_ATTACK, 30000);
+                events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 90000);
+                events.ScheduleEvent(EVENT_GRAVITY_LAPSE_END, 32000);
+                events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 20000);
+                events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 10000);
+                events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
+                events.ScheduleEvent(EVENT_SPELL_NETHER_VAPOR, 0);
+                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
+                me->CastSpell(me, SPELL_GRAVITY_LAPSE, false);
+                me->SetTarget();
+                me->GetMotionMaster()->Clear();
+                me->StopMoving();
+                Talk(SAY_GRAVITYLAPSE);
+                break;
+            case EVENT_SPELL_NETHER_VAPOR:
+                me->CastSpell(me, SPELL_SUMMON_NETHER_VAPOR, false);
+                break;
+            case EVENT_SPELL_NETHER_BEAM:
+                me->CastSpell(me, SPELL_NETHER_BEAM, false);
+                events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
+                break;
+            case EVENT_GRAVITY_LAPSE_END:
+                summons.DespawnEntry(NPC_NETHER_VAPOR);
+                events.CancelEvent(EVENT_SPELL_NETHER_BEAM);
+                me->SetTarget(me->GetVictim()->GetGUID());
+                me->GetMotionMaster()->MoveChase(me->GetVictim());
+                break;
         }
 
-        bool CheckEvadeIfOutOfCombatArea() const override
-        {
-            return me->GetHomePosition().GetExactDist2d(me) > 165.0f || !SelectTargetFromPlayerList(165.0f);
-        }
-    };
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetTheEyeAI<boss_kaelthasAI>(creature);
+        DoMeleeAttackIfReady();
     }
-};
 
+    bool CheckEvadeIfOutOfCombatArea() const override
+    {
+        return me->GetHomePosition().GetExactDist2d(me) > 165.0f || !SelectTargetFromPlayerList(165.0f);
+    }
+private:
+    TaskScheduler _rpScheduler;
+};
 class spell_kaelthas_kael_phase_two : public SpellScriptLoader
 {
 public:
