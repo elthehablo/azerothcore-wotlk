@@ -510,11 +510,24 @@ struct boss_kaelthas : public BossAI
             me->RemoveAurasDueToSpell(SPELL_KAEL_FULL_POWER);
             me->SetReactState(REACT_AGGRESSIVE);
             me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-            events.SetTimer(60000);
-            events.ScheduleEvent(EVENT_SPELL_FIREBALL, 0);
-            events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 10000);
-            events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 20000);
-            events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 5000);
+            scheduler.DelayAll(60s);
+            ScheduleTimedEvent(0ms, [&]
+            {
+                DoCastVictim(SPELL_FIREBALL);
+            }, 2000ms, 3200ms);
+            ScheduleTimedEvent(10s, [&]
+            {
+                DoCastRandomTarget(SPELL_FLAME_STRIKE, 0, 100.0f, true);
+            }, 20s);
+            ScheduleTimedEvent(20s, [&]
+            {
+                Talk(SAY_SUMMON_PHOENIX);
+                DoCastSelf(SPELL_PHOENIX);
+            }, 40s);
+            ScheduleUniqueTimedEvent(5s, [&]
+            {
+                //gravitylapse
+            }, EVENT_SPELL_GRAVITY_LAPSE);
             if (me->GetVictim())
             {
                 me->SetTarget(me->GetVictim()->GetGUID());
@@ -680,17 +693,8 @@ struct boss_kaelthas : public BossAI
             case EVENT_SPELL_SHOCK_BARRIER:
                 me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
                 break;
-            case EVENT_SPELL_FIREBALL:
-                me->CastSpell(me->GetVictim(), SPELL_FIREBALL, false);
-                events.ScheduleEvent(EVENT_SPELL_FIREBALL, roll_chance_i(70) ? 2000 : 4000);
-                break;
             case EVENT_SPELL_PYROBLAST:
                 me->CastSpell(me->GetVictim(), SPELL_PYROBLAST, false);
-                break;
-            case EVENT_SPELL_FLAMESTRIKE:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true))
-                    me->CastSpell(target, SPELL_FLAME_STRIKE, false);
-                events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 20000);
                 break;
             case EVENT_SPELL_ARCANE_DISRUPTION:
                 me->CastSpell(me, SPELL_ARCANE_DISRUPTION, false);
@@ -699,11 +703,6 @@ struct boss_kaelthas : public BossAI
                 if (roll_chance_i(50))
                     Talk(SAY_MINDCONTROL);
                 me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                break;
-            case EVENT_SPELL_SUMMON_PHOENIX:
-                Talk(SAY_SUMMON_PHOENIX);
-                me->CastSpell(me, SPELL_PHOENIX, false);
-                events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 40000);
                 break;
             case EVENT_CHECK_HEALTH:
                 if (me->HealthBelowPct(51))
