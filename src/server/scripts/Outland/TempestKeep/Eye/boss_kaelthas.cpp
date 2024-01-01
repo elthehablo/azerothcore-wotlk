@@ -115,7 +115,7 @@ enum Spells
 
 enum Groups
 {
-    GROUP_SHOCK_BARRIER                 = 0
+    GROUP_NETHER_BEAM                    = 0
 };
 
 enum Misc
@@ -337,12 +337,6 @@ struct boss_kaelthas : public BossAI
 
         if (summon->GetSpawnId() && phase == PHASE_ALL_ADVISORS)
         {
-            /*
-            for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                    if (summon->GetSpawnId() && summon->IsAlive())
-                        return;
-            */
             summons.DoForAllSummons([&](WorldObject* summon)
             {
                 if (summon->ToCreature()->GetSpawnId() && summon->ToCreature()->IsAlive())
@@ -350,71 +344,9 @@ struct boss_kaelthas : public BossAI
                     return;
                 }
             });
-
             ScheduleUniqueTimedEvent(2s, [&]
             {
-                Talk(SAY_PHASE4_INTRO2);
-                phase = PHASE_FINAL;
-                DoResetThreatList();
-                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT FLAG_DISABLE_MOVE);
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                {
-                    AttackStart(target);
-                }
-                scheduler.CancelAll();
-                ScheduleTimedEvent(1s, [&]
-                {
-                    DoCastVictim(SPELL_FIREBALL);
-                }, 2000ms, 3200ms);
-                ScheduleTimedEvent(15s, [&]
-                {
-                    DoCastRandomTarget(SPELL_FLAME_STRIKE, 0, 100.0f, true);
-                }, 20s);
-                ScheduleTimedEvent(30s, [&]
-                {
-                    Talk(SAY_SUMMON_PHOENIX);
-                    DoCastSelf(SPELL_PHOENIX);
-                }, 40s);
-                ScheduleTimedEvent(20s, [&]
-                {
-                    if (roll_chance_i(50))
-                    {
-                        Talk(SAY_MINDCONTROL);
-                    }
-                    me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                    ScheduleUniqueTimedEvent(3s, [&]
-                    {
-                        DoCastSelf(SPELL_ARCANE_DISRUPTION);
-                    }, EVENT_SPELL_ARCANE_DISRUPTION);
-                }, 50s);
-                ScheduleTimedEvent(40s, [&]
-                {
-                    ScheduleUniqueTimedEvent(3s, [&]
-                    {
-                        if (roll_chance_i(50))
-                        {
-                            Talk(SAY_MINDCONTROL);
-                        }
-                        me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                    }, EVENT_SPELL_MIND_CONTROL);
-                    ScheduleUniqueTimedEvent(6s, [&]
-                    {
-                        DoCastSelf(SPELL_ARCANE_DISRUPTION);
-                    }, EVENT_SPELL_ARCANE_DISRUPTION);
-                }, 50s);
-                ScheduleTimedEvent(60s, [&]
-                {
-                    DoCastSelf(SPELL_SHOCK_BARRIER);
-                    scheduler.DelayAll(10s);
-                    ScheduleTimedEvent(0s, [&]
-                    {
-                        DoCastVictim(SPELL_PYROBLAST);
-                    }, 4s, EVENT_SPELL_PYROBLAST);
-                    ScheduleUniqueTimedEvent(9500ms, [&]
-                    {
-                        events.CancelEvent(EVENT_SPELL_PYROBLAST);
-                    }, EVENT_SPELL_PYROBLAST);
-                }, 50s);
+                ScheduleCombatStart();
             }, EVENT_PREFIGHT_PHASE71);
             return;
         }
@@ -480,8 +412,6 @@ struct boss_kaelthas : public BossAI
         }
         else if (summon->GetEntry() == NPC_TELONICUS)
         {
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE51, 3000);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE52, 9000);
             ScheduleUniqueTimedEvent(3s, [&]
             {
                 Talk(SAY_PHASE2_WEAPON);
@@ -501,11 +431,127 @@ struct boss_kaelthas : public BossAI
                                 summon->AI()->AttackStart(target);
                         }
                 }
+                summons.DoForAllSummons([&](WorldObject* summon)
+                {
+                    if (Creature* summonedCreature = summon->ToCreature())
+                    {
+                        if (!summonedCreature->GetSpawnId())
+                        {
+                            summonedCreature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                            summonedCreature->SetInCombatWithZone();
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                            {
+                                summonedCreature->AI()->AttackStart(target);
+                            }
+                        }
+                    }
+                });
                 events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
                 events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
                 events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
+                ScheduleUniqueTimedEvent(2min, [&]
+                {
+                    ScheduleUniqueTimedEvent(6s, [&]
+                    {
+                        DoCastSelf(SPELL_RESURRECTION);
+                    }, EVENT_PREFIGHT_PHASE62);
+                    ScheduleUniqueTimedEvent(12s, [&]
+                    {
+                        summons.DoForAllSummons([&](WorldObject* summon)
+                        {
+                            if (Creature* summonedCreature = summon->ToCreature())
+                            {
+                                if (!summonedCreature->GetSpawnId())
+                                {
+                                    summonedCreature->SetReactState(REACT_AGGRESSIVE);
+                                    summonedCreature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                                    summonedCreature->SetInCombatWithZone();
+                                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                                    {
+                                        summonedCreature->AI()->AttackStart(target);
+                                    }
+                                }
+                            }
+                        });
+                        ScheduleUniqueTimedEvent(3min, [&]
+                        {
+                            ScheduleCombatStart();
+                        }, EVENT_PREFIGHT_PHASE71);
+                    }, EVENT_PREFIGHT_PHASE63);
+                    phase = PHASE_ALL_ADVISORS;
+                    Talk(SAY_PHASE3_ADVANCE);
+                }, EVENT_PREFIGHT_PHASE61);
+        
             }, EVENT_PREFIGHT_PHASE52);
+
         }
+    }
+
+    void ScheduleCombatStart()
+    {
+        Talk(SAY_PHASE4_INTRO2);
+        phase = PHASE_FINAL;
+        DoResetThreatList();
+        me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
+        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+        {
+            AttackStart(target);
+        }
+        scheduler.CancelAll();
+        ScheduleTimedEvent(1s, [&]
+        {
+            DoCastVictim(SPELL_FIREBALL);
+        }, 2000ms, 3200ms);
+        ScheduleTimedEvent(15s, [&]
+        {
+            DoCastRandomTarget(SPELL_FLAME_STRIKE, 0, 100.0f, true);
+        }, 20s);
+        ScheduleTimedEvent(30s, [&]
+        {
+            Talk(SAY_SUMMON_PHOENIX);
+            DoCastSelf(SPELL_PHOENIX);
+        }, 40s);
+        ScheduleTimedEvent(20s, [&]
+        {
+            if (roll_chance_i(50))
+            {
+                Talk(SAY_MINDCONTROL);
+            }
+            me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
+            ScheduleUniqueTimedEvent(3s, [&]
+            {
+                DoCastSelf(SPELL_ARCANE_DISRUPTION);
+            }, EVENT_SPELL_ARCANE_DISRUPTION);
+        }, 50s);
+        ScheduleTimedEvent(40s, [&]
+        {
+            ScheduleUniqueTimedEvent(3s, [&]
+            {
+                if (roll_chance_i(50))
+                {
+                    Talk(SAY_MINDCONTROL);
+                }
+                me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
+            }, EVENT_SPELL_MIND_CONTROL);
+            ScheduleUniqueTimedEvent(6s, [&]
+            {
+                DoCastSelf(SPELL_ARCANE_DISRUPTION);
+            }, EVENT_SPELL_ARCANE_DISRUPTION);
+        }, 50s);
+        ScheduleTimedEvent(60s, [&]
+        {
+            DoCastSelf(SPELL_SHOCK_BARRIER);
+            scheduler.DelayAll(10s);
+            DoCastVictim(SPELL_PYROBLAST);
+            ScheduleUniqueTimedEvent(4s, [&]
+            {
+                DoCastVictim(SPELL_PYROBLAST);
+            }, EVENT_SPELL_PYROBLAST);
+            ScheduleUniqueTimedEvent(8s, [&]
+            {
+                DoCastVictim(SPELL_PYROBLAST);
+            }, EVENT_SPELL_PYROBLAST);
+        }, 50s);
     }
 
     void JustDied(Unit* killer) override
@@ -704,7 +750,7 @@ struct boss_kaelthas : public BossAI
                 ScheduleUniqueTimedEvent(32s, [&]
                 {
                     summons.DespawnEntry(NPC_NETHER_VAPOR);
-                    events.CancelEvent(EVENT_SPELL_NETHER_BEAM);
+                    scheduler.CancelGroup(GROUP_NETHER_BEAM);
                     me->SetTarget(me->GetVictim()->GetGUID());
                     me->GetMotionMaster()->MoveChase(me->GetVictim());
                 }, EVENT_GRAVITY_LAPSE_END);
@@ -713,10 +759,10 @@ struct boss_kaelthas : public BossAI
                     DoCastSelf(SPELL_SHOCK_BARRIER);
                 }, 10s);
 
-                ScheduleTimedEvent(4s, [&]
+                scheduler.Schedule(4s, GROUP_NETHER_BEAM, [this](TaskContext context)
                 {
                     DoCastSelf(SPELL_NETHER_BEAM);
-                }, 4s, EVENT_SPELL_NETHER_BEAM);
+                });
                 DoCastSelf(SPELL_SUMMON_NETHER_VAPOR);
                 DoCastSelf(SPELL_SHOCK_BARRIER);
                 DoCastSelf(SPELL_GRAVITY_LAPSE);
@@ -731,82 +777,6 @@ struct boss_kaelthas : public BossAI
                 AttackStart(me->GetVictim());
             }
         }
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        events2.Update(diff);
-        switch (events2.ExecuteEvent())
-        {
-
- 
-            case EVENT_PREFIGHT_PHASE61:
-                phase = PHASE_ALL_ADVISORS;
-                Talk(SAY_PHASE3_ADVANCE);
-                break;
-            case EVENT_PREFIGHT_PHASE62:
-                me->CastSpell(me, SPELL_RESURRECTION, false);
-                break;
-            case EVENT_PREFIGHT_PHASE63:
-                for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                    if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                        if (summon->GetSpawnId())
-                        {
-                            summon->SetReactState(REACT_AGGRESSIVE);
-                            summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                            summon->SetInCombatWithZone();
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                                summon->AI()->AttackStart(target);
-                        }
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 3 * MINUTE * IN_MILLISECONDS);
-                break;
-        }
-
-        if (!events2.Empty())
-            return;
-
-        if (!UpdateVictim())
-            return;
-
-        events.Update(diff);
-        if (me->HasUnitState(UNIT_STATE_CASTING))
-            return;
-
-        switch (events.ExecuteEvent())
-        {
-            case EVENT_SPELL_SEQ_1:
-                events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 0);
-                events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 3000);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_1, 50000);
-                break;
-            case EVENT_SPELL_SEQ_2:
-                events.ScheduleEvent(EVENT_SPELL_MIND_CONTROL, 3000);
-                events.ScheduleEvent(EVENT_SPELL_ARCANE_DISRUPTION, 6000);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_2, 50000);
-                break;
-            case EVENT_SPELL_SEQ_3:
-                Talk(SAY_PYROBLAST);
-                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_3, 50000);
-                events.DelayEvents(10000);
-                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 0);
-                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 4000);
-                events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 8000);
-                break;
-            case EVENT_SPELL_PYROBLAST:
-                me->CastSpell(me->GetVictim(), SPELL_PYROBLAST, false);
-                break;
-            case EVENT_SPELL_ARCANE_DISRUPTION:
-                me->CastSpell(me, SPELL_ARCANE_DISRUPTION, false);
-                break;
-            case EVENT_SPELL_MIND_CONTROL:
-                if (roll_chance_i(50))
-                    Talk(SAY_MINDCONTROL);
-                me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                break;
-        }
-
-        DoMeleeAttackIfReady();
     }
 
     bool CheckEvadeIfOutOfCombatArea() const override
@@ -1146,7 +1116,7 @@ public:
 
 void AddSC_boss_kaelthas()
 {
-    new boss_kaelthas();
+    RegisterTheEyeAI(boss_kaelthas);
     new spell_kaelthas_kael_phase_two();
     new spell_kaelthas_remote_toy();
     new spell_kaelthas_summon_weapons();
