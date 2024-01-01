@@ -113,6 +113,11 @@ enum Spells
     SPELL_REMOTE_TOY_STUN               = 37029
 };
 
+enum Groups
+{
+    GROUP_SHOCK_BARRIER                 = 0
+};
+
 enum Misc
 {
     POINT_MIDDLE                        = 1,
@@ -259,6 +264,16 @@ struct boss_kaelthas : public BossAI
         SetRoomState(GO_STATE_READY);
         me->SetDisableGravity(false);
         me->SetWalk(false);
+
+        ScheduleHealthCheckEvent(50, [&]
+        {
+            scheduler.CancelAll();
+            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            me->SetReactState(REACT_PASSIVE);
+            me->GetMotionMaster()->MovePoint(POINT_MIDDLE, me->GetHomePosition(), true, true);
+            me->ClearUnitState(UNIT_STATE_MELEE_ATTACKING);
+            me->SendMeleeAttackStop();
+        });
     }
 
     void AttackStart(Unit* who) override
@@ -276,6 +291,24 @@ struct boss_kaelthas : public BossAI
             Talk(SAY_INTRO);
             events2.ScheduleEvent(EVENT_PREFIGHT_PHASE11, 23000);
             events2.ScheduleEvent(EVENT_PREFIGHT_PHASE12, 30000);
+            ScheduleUniqueTimedEvent(23s, [&]
+            {
+                Talk(SAY_INTRO_THALADRED);
+            }, EVENT_PREFIGHT_PHASE11);
+            ScheduleUniqueTimedEvent(30s, [&]
+            {
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_THALADRED))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                    {
+                        advisor->AI()->AttackStart(target);
+                    }
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_THALADRED_AGGRO);
+                }
+            }, EVENT_PREFIGHT_PHASE12);
         }
     }
 
@@ -304,34 +337,174 @@ struct boss_kaelthas : public BossAI
 
         if (summon->GetSpawnId() && phase == PHASE_ALL_ADVISORS)
         {
+            /*
             for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
                 if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
                     if (summon->GetSpawnId() && summon->IsAlive())
                         return;
+            */
+            summons.DoForAllSummons([&](WorldObject* summon)
+            {
+                if (summon->ToCreature()->GetSpawnId() && summon->ToCreature()->IsAlive())
+                {
+                    return;
+                }
+            });
 
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 2000);
+            ScheduleUniqueTimedEvent(2s, [&]
+            {
+                Talk(SAY_PHASE4_INTRO2);
+                phase = PHASE_FINAL;
+                DoResetThreatList();
+                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT FLAG_DISABLE_MOVE);
+                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                {
+                    AttackStart(target);
+                }
+                scheduler.CancelAll();
+                ScheduleTimedEvent(1s, [&]
+                {
+                    DoCastVictim(SPELL_FIREBALL);
+                }, 2000ms, 3200ms);
+                ScheduleTimedEvent(15s, [&]
+                {
+                    DoCastRandomTarget(SPELL_FLAME_STRIKE, 0, 100.0f, true);
+                }, 20s);
+                ScheduleTimedEvent(30s, [&]
+                {
+                    Talk(SAY_SUMMON_PHOENIX);
+                    DoCastSelf(SPELL_PHOENIX);
+                }, 40s);
+                ScheduleTimedEvent(20s, [&]
+                {
+                    if (roll_chance_i(50))
+                    {
+                        Talk(SAY_MINDCONTROL);
+                    }
+                    me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
+                    ScheduleUniqueTimedEvent(3s, [&]
+                    {
+                        DoCastSelf(SPELL_ARCANE_DISRUPTION);
+                    }, EVENT_SPELL_ARCANE_DISRUPTION);
+                }, 50s);
+                ScheduleTimedEvent(40s, [&]
+                {
+                    ScheduleUniqueTimedEvent(3s, [&]
+                    {
+                        if (roll_chance_i(50))
+                        {
+                            Talk(SAY_MINDCONTROL);
+                        }
+                        me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
+                    }, EVENT_SPELL_MIND_CONTROL);
+                    ScheduleUniqueTimedEvent(6s, [&]
+                    {
+                        DoCastSelf(SPELL_ARCANE_DISRUPTION);
+                    }, EVENT_SPELL_ARCANE_DISRUPTION);
+                }, 50s);
+                ScheduleTimedEvent(60s, [&]
+                {
+                    DoCastSelf(SPELL_SHOCK_BARRIER);
+                    scheduler.DelayAll(10s);
+                    ScheduleTimedEvent(0s, [&]
+                    {
+                        DoCastVictim(SPELL_PYROBLAST);
+                    }, 4s, EVENT_SPELL_PYROBLAST);
+                    ScheduleUniqueTimedEvent(9500ms, [&]
+                    {
+                        events.CancelEvent(EVENT_SPELL_PYROBLAST);
+                    }, EVENT_SPELL_PYROBLAST);
+                }, 50s);
+            }, EVENT_PREFIGHT_PHASE71);
             return;
         }
 
         if (summon->GetEntry() == NPC_THALADRED)
         {
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE21, 2000);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE22, 14500);
+            ScheduleUniqueTimedEvent(2s, [&]
+            {
+                Talk(SAY_INTRO_SANGUINAR);
+            }, EVENT_PREFIGHT_PHASE21);
+            ScheduleUniqueTimedEvent(14500ms, [&]
+            {
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_LORD_SANGUINAR))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                    {
+                        advisor->AI()->AttackStart(target);
+                    }
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_SANGUINAR_AGGRO);
+                }
+            }, EVENT_PREFIGHT_PHASE22);
         }
         else if (summon->GetEntry() == NPC_LORD_SANGUINAR)
         {
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE31, 2000);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE32, 9000);
+            ScheduleUniqueTimedEvent(2s, [&]
+            {
+                Talk(SAY_INTRO_CAPERNIAN);
+            }, EVENT_PREFIGHT_PHASE31);
+            ScheduleUniqueTimedEvent(9s, [&]
+            {
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_CAPERNIAN))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_CAPERNIAN_AGGRO);
+                }
+            }, EVENT_PREFIGHT_PHASE32);
         }
         else if (summon->GetEntry() == NPC_CAPERNIAN)
         {
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE41, 2000);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE42, 10400);
+            ScheduleUniqueTimedEvent(2s, [&]
+            {
+                Talk(SAY_INTRO_TELONICUS);
+            }, EVENT_PREFIGHT_PHASE41);
+            ScheduleUniqueTimedEvent(10400ms, [&]
+            {
+                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_TELONICUS))
+                {
+                    advisor->SetReactState(REACT_AGGRESSIVE);
+                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        advisor->AI()->AttackStart(target);
+                    advisor->SetInCombatWithZone();
+                    advisor->AI()->Talk(SAY_TELONICUS_AGGRO);
+                }
+            }, EVENT_PREFIGHT_PHASE42);
         }
         else if (summon->GetEntry() == NPC_TELONICUS)
         {
             events2.ScheduleEvent(EVENT_PREFIGHT_PHASE51, 3000);
             events2.ScheduleEvent(EVENT_PREFIGHT_PHASE52, 9000);
+            ScheduleUniqueTimedEvent(3s, [&]
+            {
+                Talk(SAY_PHASE2_WEAPON);
+                me->CastSpell(me, SPELL_SUMMON_WEAPONS, false);
+                phase = PHASE_WEAPONS;
+            }, EVENT_PREFIGHT_PHASE51);
+            ScheduleUniqueTimedEvent(9s, [&]
+            {
+                for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
+                {
+                    if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
+                        if (!summon->GetSpawnId())
+                        {
+                            summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                            summon->SetInCombatWithZone();
+                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                                summon->AI()->AttackStart(target);
+                        }
+                }
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
+                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
+            }, EVENT_PREFIGHT_PHASE52);
         }
     }
 
@@ -524,10 +697,34 @@ struct boss_kaelthas : public BossAI
                 Talk(SAY_SUMMON_PHOENIX);
                 DoCastSelf(SPELL_PHOENIX);
             }, 40s);
-            ScheduleUniqueTimedEvent(5s, [&]
+            ScheduleTimedEvent(5s, [&]
             {
-                //gravitylapse
-            }, EVENT_SPELL_GRAVITY_LAPSE);
+                scheduler.DelayAll(30s);
+                me->setAttackTimer(BASE_ATTACK, 30000);
+                ScheduleUniqueTimedEvent(32s, [&]
+                {
+                    summons.DespawnEntry(NPC_NETHER_VAPOR);
+                    events.CancelEvent(EVENT_SPELL_NETHER_BEAM);
+                    me->SetTarget(me->GetVictim()->GetGUID());
+                    me->GetMotionMaster()->MoveChase(me->GetVictim());
+                }, EVENT_GRAVITY_LAPSE_END);
+                ScheduleTimedEvent(10s, [&]
+                {
+                    DoCastSelf(SPELL_SHOCK_BARRIER);
+                }, 10s);
+
+                ScheduleTimedEvent(4s, [&]
+                {
+                    DoCastSelf(SPELL_NETHER_BEAM);
+                }, 4s, EVENT_SPELL_NETHER_BEAM);
+                DoCastSelf(SPELL_SUMMON_NETHER_VAPOR);
+                DoCastSelf(SPELL_SHOCK_BARRIER);
+                DoCastSelf(SPELL_GRAVITY_LAPSE);
+                me->SetTarget();
+                me->GetMotionMaster()->Clear();
+                me->StopMoving();
+                Talk(SAY_GRAVITYLAPSE);
+            }, 90s);
             if (me->GetVictim())
             {
                 me->SetTarget(me->GetVictim()->GetGUID());
@@ -541,83 +738,8 @@ struct boss_kaelthas : public BossAI
         events2.Update(diff);
         switch (events2.ExecuteEvent())
         {
-            case EVENT_PREFIGHT_PHASE11:
-                Talk(SAY_INTRO_THALADRED);
-                break;
-            case EVENT_PREFIGHT_PHASE12:
-                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_THALADRED))
-                {
-                    advisor->SetReactState(REACT_AGGRESSIVE);
-                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        advisor->AI()->AttackStart(target);
-                    advisor->SetInCombatWithZone();
-                    advisor->AI()->Talk(SAY_THALADRED_AGGRO);
-                }
-                break;
-            case EVENT_PREFIGHT_PHASE21:
-                Talk(SAY_INTRO_SANGUINAR);
-                break;
-            case EVENT_PREFIGHT_PHASE22:
-                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_LORD_SANGUINAR))
-                {
-                    advisor->SetReactState(REACT_AGGRESSIVE);
-                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        advisor->AI()->AttackStart(target);
-                    advisor->SetInCombatWithZone();
-                    advisor->AI()->Talk(SAY_SANGUINAR_AGGRO);
-                }
-                break;
-            case EVENT_PREFIGHT_PHASE31:
-                Talk(SAY_INTRO_CAPERNIAN);
-                break;
-            case EVENT_PREFIGHT_PHASE32:
-                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_CAPERNIAN))
-                {
-                    advisor->SetReactState(REACT_AGGRESSIVE);
-                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        advisor->AI()->AttackStart(target);
-                    advisor->SetInCombatWithZone();
-                    advisor->AI()->Talk(SAY_CAPERNIAN_AGGRO);
-                }
-                break;
-            case EVENT_PREFIGHT_PHASE41:
-                Talk(SAY_INTRO_TELONICUS);
-                break;
-            case EVENT_PREFIGHT_PHASE42:
-                if (Creature* advisor = summons.GetCreatureWithEntry(NPC_TELONICUS))
-                {
-                    advisor->SetReactState(REACT_AGGRESSIVE);
-                    advisor->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                        advisor->AI()->AttackStart(target);
-                    advisor->SetInCombatWithZone();
-                    advisor->AI()->Talk(SAY_TELONICUS_AGGRO);
-                }
-                break;
-            case EVENT_PREFIGHT_PHASE51:
-                Talk(SAY_PHASE2_WEAPON);
-                me->CastSpell(me, SPELL_SUMMON_WEAPONS, false);
-                phase = PHASE_WEAPONS;
-                break;
-            case EVENT_PREFIGHT_PHASE52:
-                for (SummonList::const_iterator i = summons.begin(); i != summons.end(); ++i)
-                {
-                    if (Creature* summon = ObjectAccessor::GetCreature(*me, *i))
-                        if (!summon->GetSpawnId())
-                        {
-                            summon->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
-                            summon->SetInCombatWithZone();
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                                summon->AI()->AttackStart(target);
-                        }
-                }
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
-                break;
+
+ 
             case EVENT_PREFIGHT_PHASE61:
                 phase = PHASE_ALL_ADVISORS;
                 Talk(SAY_PHASE3_ADVANCE);
@@ -637,25 +759,6 @@ struct boss_kaelthas : public BossAI
                                 summon->AI()->AttackStart(target);
                         }
                 events2.ScheduleEvent(EVENT_PREFIGHT_PHASE71, 3 * MINUTE * IN_MILLISECONDS);
-                break;
-            case EVENT_PREFIGHT_PHASE71:
-                events2.CancelEvent(EVENT_PREFIGHT_PHASE71);
-                Talk(SAY_PHASE4_INTRO2);
-                phase = PHASE_FINAL;
-                DoResetThreatList();
-                me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                    AttackStart(target);
-
-                events2.Reset();
-                events.Reset();
-                events.ScheduleEvent(EVENT_SPELL_FIREBALL, 1000);
-                events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 15000);
-                events.ScheduleEvent(EVENT_SPELL_SUMMON_PHOENIX, 30000);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_1, 20000);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_2, 40000);
-                events.ScheduleEvent(EVENT_SPELL_SEQ_3, 60000);
-                events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
                 break;
         }
 
@@ -690,9 +793,6 @@ struct boss_kaelthas : public BossAI
                 events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 4000);
                 events.ScheduleEvent(EVENT_SPELL_PYROBLAST, 8000);
                 break;
-            case EVENT_SPELL_SHOCK_BARRIER:
-                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                break;
             case EVENT_SPELL_PYROBLAST:
                 me->CastSpell(me->GetVictim(), SPELL_PYROBLAST, false);
                 break;
@@ -703,48 +803,6 @@ struct boss_kaelthas : public BossAI
                 if (roll_chance_i(50))
                     Talk(SAY_MINDCONTROL);
                 me->CastCustomSpell(SPELL_MIND_CONTROL, SPELLVALUE_MAX_TARGETS, 3, me, false);
-                break;
-            case EVENT_CHECK_HEALTH:
-                if (me->HealthBelowPct(51))
-                {
-                    events.Reset();
-                    me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-                    me->SetReactState(REACT_PASSIVE);
-                    me->GetMotionMaster()->MovePoint(POINT_MIDDLE, me->GetHomePosition(), true, true);
-                    me->ClearUnitState(UNIT_STATE_MELEE_ATTACKING);
-                    me->SendMeleeAttackStop();
-                    break;
-                }
-                events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
-                break;
-            case EVENT_SPELL_GRAVITY_LAPSE:
-                events.DelayEvents(30000);
-                me->setAttackTimer(BASE_ATTACK, 30000);
-                events.ScheduleEvent(EVENT_SPELL_GRAVITY_LAPSE, 90000);
-                events.ScheduleEvent(EVENT_GRAVITY_LAPSE_END, 32000);
-                events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 20000);
-                events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 10000);
-                events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
-                events.ScheduleEvent(EVENT_SPELL_NETHER_VAPOR, 0);
-                me->CastSpell(me, SPELL_SHOCK_BARRIER, false);
-                me->CastSpell(me, SPELL_GRAVITY_LAPSE, false);
-                me->SetTarget();
-                me->GetMotionMaster()->Clear();
-                me->StopMoving();
-                Talk(SAY_GRAVITYLAPSE);
-                break;
-            case EVENT_SPELL_NETHER_VAPOR:
-                me->CastSpell(me, SPELL_SUMMON_NETHER_VAPOR, false);
-                break;
-            case EVENT_SPELL_NETHER_BEAM:
-                me->CastSpell(me, SPELL_NETHER_BEAM, false);
-                events.ScheduleEvent(EVENT_SPELL_NETHER_BEAM, 4000);
-                break;
-            case EVENT_GRAVITY_LAPSE_END:
-                summons.DespawnEntry(NPC_NETHER_VAPOR);
-                events.CancelEvent(EVENT_SPELL_NETHER_BEAM);
-                me->SetTarget(me->GetVictim()->GetGUID());
-                me->GetMotionMaster()->MoveChase(me->GetVictim());
                 break;
         }
 
