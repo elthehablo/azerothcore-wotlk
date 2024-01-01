@@ -115,7 +115,8 @@ enum Spells
 
 enum Groups
 {
-    GROUP_NETHER_BEAM                    = 0
+    GROUP_NETHER_BEAM                    = 0,
+    GROUP_TIMELAPSE                      = 1
 };
 
 enum Misc
@@ -203,7 +204,6 @@ struct boss_kaelthas : public BossAI
     }
 
     uint8 phase;
-    EventMap events2;
 
     void PrepareAdvisors()
     {
@@ -250,11 +250,10 @@ struct boss_kaelthas : public BossAI
     void Reset() override
     {
         BossAI::Reset();
-        _rpScheduler.CancelAll();
-        _rpScheduler.Schedule(1s, [this](TaskContext)
+        ScheduleUniqueTimedEvent(1s, [&]
         {
             PrepareAdvisors();
-        });
+        }, EVENT_GATHER_ADVISORS);
 
         phase = PHASE_NONE;
 
@@ -278,8 +277,10 @@ struct boss_kaelthas : public BossAI
 
     void AttackStart(Unit* who) override
     {
-        if (phase == PHASE_FINAL && events.GetNextEventTime(EVENT_GRAVITY_LAPSE_END) == 0)
+        if (phase == PHASE_FINAL/*&& scheduler.IsGroupScheduled(GROUP_TIMELAPSE)*/)
+        {
             BossAI::AttackStart(who);
+        }
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -289,8 +290,6 @@ struct boss_kaelthas : public BossAI
             phase = PHASE_SINGLE_ADVISOR;
             me->SetInCombatWithZone();
             Talk(SAY_INTRO);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE11, 23000);
-            events2.ScheduleEvent(EVENT_PREFIGHT_PHASE12, 30000);
             ScheduleUniqueTimedEvent(23s, [&]
             {
                 Talk(SAY_INTRO_THALADRED);
@@ -446,9 +445,6 @@ struct boss_kaelthas : public BossAI
                         }
                     }
                 });
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE61, 2 * MINUTE * IN_MILLISECONDS);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE62, 2 * MINUTE * IN_MILLISECONDS + 6000);
-                events2.ScheduleEvent(EVENT_PREFIGHT_PHASE63, 2 * MINUTE * IN_MILLISECONDS + 12000);
                 ScheduleUniqueTimedEvent(2min, [&]
                 {
                     ScheduleUniqueTimedEvent(6s, [&]
@@ -588,7 +584,7 @@ struct boss_kaelthas : public BossAI
                 me->SetTarget();
                 for (uint8 i = 0; i < 2; ++i)
                 {
-                    if (Creature* trigger = me->SummonCreature                      (WORLD_TRIGGER, triggersPos[i], TEMPSUMMON_TIMED_DESPAWN, 60000))
+                    if (Creature* trigger = me->SummonCreature(WORLD_TRIGGER, triggersPos[i], TEMPSUMMON_TIMED_DESPAWN, 60000))
                     {
                         trigger->CastSpell(me, SPELL_NETHERBEAM1 + i, false);
                     }
@@ -783,8 +779,6 @@ struct boss_kaelthas : public BossAI
     {
         return me->GetHomePosition().GetExactDist2d(me) > 165.0f || !SelectTargetFromPlayerList(165.0f);
     }
-private:
-    TaskScheduler _rpScheduler;
 };
 class spell_kaelthas_kael_phase_two : public SpellScriptLoader
 {
