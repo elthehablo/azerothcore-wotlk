@@ -145,6 +145,7 @@ enum Misc
     DATA_RESURRECT_CAST                 = 1,
     NPC_WORLD_TRIGGER                   = 19871,
     NPC_NETHER_VAPOR                    = 21002,
+    NPC_PHOENIX                         = 21362,
     NPC_NETHERSTRAND_LONGBOW            = 21268,
     NPC_STAFF_OF_DISINTEGRATION         = 21274,
 
@@ -352,6 +353,8 @@ struct boss_kaelthas : public BossAI
         summons.Summon(summon);
         if (summon->GetEntry() == NPC_NETHER_VAPOR)
             summon->GetMotionMaster()->MoveRandom(20.0f);
+        else if (summon->GetEntry() == NPC_PHOENIX)
+            summon->SetInCombatWithZone();
     }
 
     void DoAction(int32 action) override
