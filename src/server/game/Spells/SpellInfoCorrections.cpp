@@ -490,6 +490,13 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->Effects[EFFECT_0].BasePoints = 0; // force seat 0, vehicle doesn't have the required seat flags for "no seat specified (-1)"
     });
 
+    // Ghoul (HYJAL) cannibalize
+    ApplySpellFix({ 31537 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Effects[EFFECT_0].BasePoints = 6800; // 7% of health pool
+    });
+
+
     ApplySpellFix({
         64745,  // Item - Death Knight T8 Tank 4P Bonus
         64936   // Item - Warrior T8 Protection 4P Bonus
