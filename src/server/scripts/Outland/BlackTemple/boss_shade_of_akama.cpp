@@ -407,8 +407,9 @@ struct npc_creature_generator_akama : public ScriptedAI
                 summon->AI()->AttackStart(akama);
             break;
         default:
+            summon->SetInCombatWithZone();
             if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
-                summon->SetInCombatWith(akama);
+                summon->AI()->AttackStart(akama);
             break;
         }
     }
