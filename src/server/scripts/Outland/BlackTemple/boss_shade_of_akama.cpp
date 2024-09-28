@@ -243,14 +243,6 @@ struct npc_akama_shade : public ScriptedAI
         _generators.clear();
     }
 
-    void JustDied(Unit* killer) override
-    {
-        ScriptedAI::JustDied(killer);
-        me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
-        for (Creature* generator : _generators)
-            generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
-    }
-
     void MovementInform(uint32 type, uint32 point) override
     {
         if (type == POINT_MOTION_TYPE)
@@ -313,6 +305,9 @@ struct npc_akama_shade : public ScriptedAI
                 shade->SetHomePosition(shade->GetHomePosition());
                 shade->AI()->EnterEvadeMode();
             }
+            me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
+            for (Creature* generator : _generators)
+                generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
 
             me->DespawnOrUnsummon();
             ScriptedAI::EnterEvadeMode(EvadeReason::EVADE_REASON_OTHER);
