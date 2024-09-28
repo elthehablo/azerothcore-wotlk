@@ -387,6 +387,7 @@ struct npc_creature_generator_akama : public ScriptedAI
     {
         spawnCounter++;
         ScriptedAI::JustSummoned(summon);
+        summons.Summon(summon);
 
         switch (summon->GetEntry())
         {
