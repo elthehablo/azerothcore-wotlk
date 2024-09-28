@@ -298,6 +298,10 @@ struct npc_akama_shade : public ScriptedAI
         else if (damage >= me->GetHealth() && !_died)
         {
             _died = true;
+            me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
+            for (Creature* generator : _generators)
+                generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
+
             damage = me->GetHealth() - 1;
             Talk(SAY_DEATH);
             if (Creature* shade = instance->GetCreature(DATA_SHADE_OF_AKAMA))
@@ -305,9 +309,6 @@ struct npc_akama_shade : public ScriptedAI
                 shade->SetHomePosition(shade->GetHomePosition());
                 shade->AI()->EnterEvadeMode();
             }
-            me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
-            for (Creature* generator : _generators)
-                generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
 
             me->DespawnOrUnsummon();
             ScriptedAI::EnterEvadeMode(EvadeReason::EVADE_REASON_OTHER);
