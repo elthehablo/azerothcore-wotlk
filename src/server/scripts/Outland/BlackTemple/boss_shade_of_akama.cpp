@@ -298,7 +298,7 @@ struct npc_akama_shade : public ScriptedAI
         else if (damage >= me->GetHealth() && !_died)
         {
             _died = true;
-            me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
+            me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 150.0f);
             for (Creature* generator : _generators)
                 generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
 
@@ -397,14 +397,8 @@ struct npc_creature_generator_akama : public ScriptedAI
                 summon->GetMotionMaster()->MovePoint(POINT_ENGAGE, x, y, z);
             }
             break;
-        case NPC_ASHTONGUE_DEFENDER:
-            summon->SetFaction(FACTION_DEFENDER);
-            if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
-                summon->AI()->AttackStart(akama);
-            break;
         default:
             summon->SetFaction(FACTION_DEFENDER);
-            summon->SetInCombatWithZone();
             if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
                 summon->AI()->AttackStart(akama);
             break;
