@@ -299,6 +299,7 @@ struct npc_akama_shade : public ScriptedAI
         {
             _died = true;
             me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 150.0f);
+            me->Yell(std::to_string(_generators.size()));
             for (Creature* generator : _generators)
                 generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
 
