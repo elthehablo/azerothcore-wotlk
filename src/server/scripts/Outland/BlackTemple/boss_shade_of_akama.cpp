@@ -105,7 +105,7 @@ struct boss_shade_of_akama : public BossAI
     {
         channelers.clear();
         generators.clear();
-
+        allPlayersInactive = false;
         me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         me->SetWalk(true);
         me->SetReactState(REACT_DEFENSIVE);
@@ -212,6 +212,7 @@ struct boss_shade_of_akama : public BossAI
     }
 private:
     std::list<Creature* > _shadeMinionList;
+    bool allPlayersInactive;
 };
 
 
@@ -406,7 +407,8 @@ struct npc_creature_generator_akama : public ScriptedAI
                 summon->AI()->AttackStart(akama);
             break;
         default:
-            summon->SetInCombatWithZone();
+            if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
+                summon->SetInCombatWith(akama);
             break;
         }
     }
