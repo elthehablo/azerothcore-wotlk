@@ -198,6 +198,7 @@ struct boss_shade_of_akama : public BossAI
     }
 };
 
+
 struct npc_akama_shade : public ScriptedAI
 {
     npc_akama_shade(Creature* creature) : ScriptedAI(creature)
@@ -222,6 +223,29 @@ struct npc_akama_shade : public ScriptedAI
         _sayLowHealth = false;
         _died = false;
         scheduler.CancelAll();
+        CreaturesAttackAkama();
+        _shadeMinionList.clear();
+        _generators.clear();
+    }
+
+    void CreaturesAttackAkama()
+    {
+        // populate list of creatures to keep attacking Akama
+        me->GetCreaturesWithEntryInRange(_shadeMinionList, 100.0f, NPC_ASHTONGUE_SPIRITBIND);
+        me->GetCreaturesWithEntryInRange(_shadeMinionList, 100.0f, NPC_ASHTONGUE_DEFENDER);
+        me->GetCreaturesWithEntryInRange(_shadeMinionList, 100.0f, NPC_ASHTONGUE_ELEMENTAL);
+        me->GetCreaturesWithEntryInRange(_shadeMinionList, 100.0f, NPC_ASHTONGUE_ROGUE);
+        for (Creature* minion : _shadeMinionList)
+            if (minion->IsAlive())
+                minion->SetInCombatWith(instance->GetCreature(DATA_AKAMA_SHADE));
+    }
+
+    void JustDied(Unit* killer) override
+    {
+        ScriptedAI::JustDied(killer);
+        me->GetCreatureListWithEntryInGrid(_generators, NPC_CREATURE_GENERATOR_AKAMA, 100.0f);
+        for (Creature* generator : _generators)
+            generator->AI()->DoAction(ACTION_GENERATOR_DESPAWN_ALL);
     }
 
     void MovementInform(uint32 type, uint32 point) override
@@ -342,6 +366,8 @@ struct npc_akama_shade : public ScriptedAI
     private:
         bool _sayLowHealth;
         bool _died;
+        std::list<Creature *> _shadeMinionList;
+        std::list<Creature *> _generators;
 };
 
 struct npc_creature_generator_akama : public ScriptedAI
@@ -355,7 +381,6 @@ struct npc_creature_generator_akama : public ScriptedAI
 
     void Reset() override
     {
-        summons.DespawnAll();
         scheduler.CancelAll();
     }
 
