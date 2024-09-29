@@ -170,12 +170,14 @@ struct boss_shade_of_akama : public BossAI
                 if (!_engagedPlayerList.empty())
                 {
                     // check if all players are still engaged
+                    LOG_ERROR("server", "Amount of engaged players {}",std::to_string(_engagedPlayerList.size()));
                     uint8 engagedCounter = 0;
                     for (Player* p : _engagedPlayerList)
                     {
                         if (p->IsEngaged())
                             engagedCounter++;
                     }
+                    LOG_ERROR("server", "Engaged counter {}",std::to_string(engagedCounter));
                     if (!engagedCounter)
                     {
                         // change faction so Akama is attacked
@@ -183,10 +185,12 @@ struct boss_shade_of_akama : public BossAI
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_ROGUE, 100.0f);
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_ELEMENTAL, 100.0f);
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_SPIRITBIND, 100.0f);
+                        LOG_ERROR("server", "Amount of hostiles to convert {}",std::to_string(nearbyHostiles.size()));
                         if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
                         {
                             for (Creature* hostile : nearbyHostiles)
                             {
+                                LOG_ERROR("server", "Setting creature to defender and attacking akama");
                                 hostile->SetFaction(FACTION_DEFENDER);
                                 hostile->SetInCombatWith(akama);
                                 
