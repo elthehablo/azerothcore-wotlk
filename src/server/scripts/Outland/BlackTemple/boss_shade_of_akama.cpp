@@ -165,9 +165,8 @@ struct boss_shade_of_akama : public BossAI
                     me->GetMotionMaster()->MovePoint(POINT_ENGAGE, ShadeEngage);
                 }
             }, 1200ms);
-            ScheduleTimedEvent(5000ms, [&]
+            ScheduleTimedEvent(5ms, [&]
             {
-                LOG_ERROR("server", "Amount of engaged players {}",std::to_string(_engagedPlayerList.size()));
                 if (!_engagedPlayerList.empty())
                 {
                     // check if all players are still engaged
@@ -177,20 +176,18 @@ struct boss_shade_of_akama : public BossAI
                         if (p->IsInCombat())
                             engagedCounter++;
                     }
-                    LOG_ERROR("server", "Engaged counter {}",std::to_string(engagedCounter));
                     if (!engagedCounter)
                     {
-                        // change faction so Akama is attacked
+                        // change faction so Akama is attacked, and keep doing this as long as akama is alive
+                        // so new creatures also attack him
                         std::list<Creature* > nearbyHostiles;
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_ROGUE, 100.0f);
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_ELEMENTAL, 100.0f);
                         me->GetCreatureListWithEntryInGrid(nearbyHostiles, NPC_ASHTONGUE_SPIRITBIND, 100.0f);
-                        LOG_ERROR("server", "Amount of hostiles to convert {}",std::to_string(nearbyHostiles.size()));
                         if (Creature* akama = instance->GetCreature(DATA_AKAMA_SHADE))
                         {
                             for (Creature* hostile : nearbyHostiles)
                             {
-                                LOG_ERROR("server", "Setting creature to defender and attacking akama");
                                 hostile->SetFaction(FACTION_DEFENDER);
                                 hostile->Attack(akama, true);
                                 
@@ -199,7 +196,7 @@ struct boss_shade_of_akama : public BossAI
                         nearbyHostiles.clear();
                     }
                 }
-            }, 1200ms);
+            }, 2s);
         }
     }
 
