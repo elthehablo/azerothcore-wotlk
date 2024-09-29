@@ -165,7 +165,7 @@ struct boss_shade_of_akama : public BossAI
                     me->GetMotionMaster()->MovePoint(POINT_ENGAGE, ShadeEngage);
                 }
             }, 1200ms);
-            ScheduleTimedEvent(1200ms, [&]
+            ScheduleTimedEvent(5000ms, [&]
             {
                 LOG_ERROR("server", "Amount of engaged players {}",std::to_string(_engagedPlayerList.size()));
                 if (!_engagedPlayerList.empty())
