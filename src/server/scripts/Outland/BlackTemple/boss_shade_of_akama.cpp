@@ -174,7 +174,7 @@ struct boss_shade_of_akama : public BossAI
                     uint8 engagedCounter = 0;
                     for (Player* p : _engagedPlayerList)
                     {
-                        if (p->IsEngaged())
+                        if (p->IsInCombat())
                             engagedCounter++;
                     }
                     LOG_ERROR("server", "Engaged counter {}",std::to_string(engagedCounter));
