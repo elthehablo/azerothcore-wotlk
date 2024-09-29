@@ -192,12 +192,11 @@ struct boss_shade_of_akama : public BossAI
                             {
                                 LOG_ERROR("server", "Setting creature to defender and attacking akama");
                                 hostile->SetFaction(FACTION_DEFENDER);
-                                hostile->SetInCombatWith(akama);
+                                akama->AddThreat(hostile, 1000.0f);
                                 
                             }
                         }
                         nearbyHostiles.clear();
-                        _engagedPlayerList.clear();
                     }
                 }
             }, 1200ms);
