@@ -167,10 +167,10 @@ struct boss_shade_of_akama : public BossAI
             }, 1200ms);
             ScheduleTimedEvent(1200ms, [&]
             {
+                LOG_ERROR("server", "Amount of engaged players {}",std::to_string(_engagedPlayerList.size()));
                 if (!_engagedPlayerList.empty())
                 {
                     // check if all players are still engaged
-                    LOG_ERROR("server", "Amount of engaged players {}",std::to_string(_engagedPlayerList.size()));
                     uint8 engagedCounter = 0;
                     for (Player* p : _engagedPlayerList)
                     {
