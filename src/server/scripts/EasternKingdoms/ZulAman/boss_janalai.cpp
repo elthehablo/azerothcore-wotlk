@@ -118,14 +118,15 @@ enum HatchActions
 
 enum Misc
 {
-    DISPLAYID_PLACEHOLDER_1 = 10056,
-    DISPLAYID_PLACEHOLDER_2 = 11686,
+    DISPLAYID_PLACEHOLDER_1     = 10056,
+    DISPLAYID_PLACEHOLDER_2     = 11686,
 
-    MAX_BOMB_COUNT          = 40,
+    MAX_BOMB_COUNT              = 40,
 
-    SCHEDULER_GROUP_BOMBING = 1,
+    SCHEDULER_GROUP_BOMBING     = 1,
+    SCHEDULER_GROUP_HATCHING    = 2,
 
-    EVENT_BERSERK           = 0
+    EVENT_BERSERK               = 0
 };
 
 struct boss_janalai : public BossAI
@@ -393,10 +394,47 @@ struct npc_janalai_hatcher : public ScriptedAI
         {
             _isHatching = true;
             _hatchNum = 1;
-            // wait 5 seconds
+            scheduler.Schedule(5s, SCHEDULER_GROUP_HATCHING, [this](TaskContext context)
+            {
+                if (HatchEggs(_hatchNum))
+                {
+                    ++_hatchNum;
+                }
+                else if (!_hasChangedSide)
+                {
+                    _side = _side ? 0 : 1;
+                    _isHatching = false;
+                    _waypoint = 3;
+                    _waypoint = MoveToNewWaypoint(_waypoint);
+                    _hasChangedSide = true;
+                    scheduler.CancelGroup(SCHEDULER_GROUP_HATCHING);
+                }
+                context.Repeat(10s);
+            });
         }
         else
-            return; // placeholder do instantly
+            _waypoint = MoveToNewWaypoint(_waypoint);
+    }
+
+    uint8 MoveToNewWaypoint(uint8 waypoint)
+    {
+        if (!_isHatching)
+        {
+            me->GetMotionMaster()->Clear();
+            me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint][0], hatcherway[_side][waypoint][1], hatcherway[_side][waypoint][2]);
+            return ++_waypoint;
+        }
+        return _waypoint;
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        scheduler.Update(diff);
+
+        DoMeleeAttackIfReady();
     }
 
     void JustEngagedWith(Unit* /*who*/) override { }
@@ -412,11 +450,61 @@ private:
     bool _hasChangedSide;
 };
 
+struct npc_janalai_hatchling : public ScriptedAI
+{
+    npc_janalai_hatchling(Creature* creature) : ScriptedAI(creature)
+    {
+        _instance = creature->GetInstanceScript();
+    }
+
+    void Reset() override
+    {
+        scheduler.CancelAll();
+        if (me->GetPositionY() > 1150)
+            me->GetMotionMaster()->MovePoint(0, hatcherway[0][3][0] + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[0][3][2]);
+        else
+            me->GetMotionMaster()->MovePoint(0, hatcherway[1][3][0] + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[1][3][2]);
+
+        me->SetDisableGravity(true);
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        ScheduleTimedEvent(7s, [&]{
+            DoCastVictim(SPELL_FLAMEBUFFET);
+        }, 10s);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        scheduler.Update(diff);
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    InstanceScript* _instance;
+};
+
+struct npc_janalai_egg : public NullCreatureAI
+{
+    npc_janalai_egg(Creature* creature) : NullCreatureAI(creature) { }
+
+    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_HATCH_EGG)
+            DoCastSelf(SPELL_SUMMON_HATCHLING);
+    }
+};
+
 void AddSC_boss_janalai()
 {
     RegisterZulAmanCreatureAI(boss_janalai);
     RegisterZulAmanCreatureAI(npc_janalai_firebomb);
-    //new npc_janalai_hatcher();
-    //new npc_janalai_hatchling();
-    //new npc_janalai_egg();
+    RegisterZulAmanCreatureAI(npc_janalai_hatcher);
+    RegisterZulAmanCreatureAI(npc_janalai_hatchling);
+    RegisterZulAmanCreatureAI(npc_janalai_egg);
 }
