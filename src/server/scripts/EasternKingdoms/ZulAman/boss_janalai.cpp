@@ -351,6 +351,67 @@ struct npc_janalai_firebomb : public NullCreatureAI
     }
 };
 
+struct npc_janalai_hatcher : public ScriptedAI
+{
+    npc_janalai_hatcher(Creature* creature) : ScriptedAI(creature)
+    { 
+        _instance = creature->GetInstanceScript();
+    }
+
+    void Reset() override
+    {
+        ScriptedAI::Reset();
+        me->SetWalk(true);
+        _side = (me->GetPositionY() < 1150);
+        _waypoint = 0;
+        _isHatching = false;
+        _hasChangedSide = false;
+        _hatchNum = 0;
+    }
+
+    bool HatchEggs(uint32 num)
+    {
+        std::list<Creature* > eggList;
+
+        me->GetCreaturesWithEntryInRange(eggList, 100.0f, NPC_EGG);
+        if (eggList.empty())
+            return false;
+
+        for (Creature* egg : eggList)
+        {
+            if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+                --num;
+        }
+        eggList.clear();
+        return num == 0;
+    }
+
+    void MovementInform(uint32, uint32) override
+    {
+        if (_waypoint == 5)
+        {
+            _isHatching = true;
+            _hatchNum = 1;
+            // wait 5 seconds
+        }
+        else
+            return; // placeholder do instantly
+    }
+
+    void JustEngagedWith(Unit* /*who*/) override { }
+    void AttackStart(Unit* /*who*/) override { }
+    void MoveInLineOfSight(Unit* /*who*/) override { }
+
+private:
+    InstanceScript* _instance;
+    uint8 _side;
+    uint8 _hatchNum;
+    uint8 _waypoint;
+    bool _isHatching;
+    bool _hasChangedSide;
+};
+
 void AddSC_boss_janalai()
 {
     RegisterZulAmanCreatureAI(boss_janalai);
