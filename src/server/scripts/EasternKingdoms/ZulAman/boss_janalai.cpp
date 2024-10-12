@@ -26,6 +26,7 @@ EndScriptData */
 #include "CreatureScript.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "PassiveAI.h"
 #include "ScriptedCreature.h"
 #include "zulaman.h"
 
@@ -137,6 +138,7 @@ struct boss_janalai : public BossAI
         HatchAllEggs(HATCH_RESET);
         _bombCount = 0;
         _isBombing = false;
+        _isFlameBreathing = false;
 
         ScheduleHealthCheckEvent(25, [&]{
             DoCastSelf(SPELL_ENRAGE, true);
@@ -145,6 +147,16 @@ struct boss_janalai : public BossAI
                 DoCastSelf(SPELL_BERSERK);
             }, EVENT_BERSERK);
         });
+
+        ScheduleHealthCheckEvent(35, [&]{
+            Talk(SAY_ALL_EGGS);
+            me->AttackStop();
+            me->GetMotionMaster()->Clear();
+            me->NearTeleportTo(JanalainPos[0][0], JanalainPos[0][1], JanalainPos[0][2], me->GetOrientation());
+            me->StopMovingOnCurrentPos();
+            DoCastSelf(SPELL_HATCH_ALL);
+            HatchAllEggs(HATCH_ALL);
+        });
     }
 
     void JustDied(Unit* killer) override
@@ -152,6 +164,16 @@ struct boss_janalai : public BossAI
         Talk(SAY_DEATH);
         BossAI::Reset();
     }
+
+    void DamageDealt(Unit* target, uint32& damage, DamageEffectType /*damagetype*/) override
+    {
+        if (_isFlameBreathing)
+        {
+            if (!me->HasInArc(M_PI / 6, target))
+                damage = 0;
+        }
+    }
+
     void JustEngagedWith(Unit* who) override
     {
         BossAI::JustEngagedWith(who);
@@ -159,7 +181,30 @@ struct boss_janalai : public BossAI
         //schedule abilities
         ScheduleTimedEvent(30s, [&]{
             StartBombing();
-        }, 30s);
+        }, 20s, 40s);
+        ScheduleTimedEvent(10s, [&]{
+            if (HatchAllEggs(HATCH_RESET))
+            {
+                Talk(SAY_SUMMON_HATCHER);
+                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[0][0][0], hatcherway[0][0][1], hatcherway[0][0][2], 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
+                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[1][0][0], hatcherway[1][0][1], hatcherway[1][0][2], 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
+            }
+        }, 90s);
+        ScheduleTimedEvent(8s, [&]{
+            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+            {
+                me->AttackStop();
+                me->GetMotionMaster()->Clear();
+                DoCast(target, SPELL_FLAME_BREATH);
+                me->StopMoving();
+                _isFlameBreathing = true;
+                // placeholder time idk yet
+                scheduler.Schedule(2s, [this](TaskContext)
+                {
+                    _isFlameBreathing = false;
+                });
+            }
+        }, 8s);
     }
 
     bool HatchAllEggs(uint32 hatchAction)
@@ -284,15 +329,32 @@ struct boss_janalai : public BossAI
             me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
         }
     }
+
+    bool CheckEvadeIfOutOfCombatArea() const override
+    {
+        return me->GetPositionZ() <= 12.0f;
+    }
 private:
     uint8 _bombCount;
     bool _isBombing;
+    bool _isFlameBreathing;
+};
+
+struct npc_janalai_firebomb : public NullCreatureAI
+{
+    npc_janalai_firebomb(Creature* creature) : NullCreatureAI(creature) { }
+
+    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_FIRE_BOMB_THROW)
+            DoCastSelf(SPELL_FIRE_BOMB_DUMMY, true);
+    }
 };
 
 void AddSC_boss_janalai()
 {
     RegisterZulAmanCreatureAI(boss_janalai);
-    //new npc_janalai_firebomb();
+    RegisterZulAmanCreatureAI(npc_janalai_firebomb);
     //new npc_janalai_hatcher();
     //new npc_janalai_hatchling();
     //new npc_janalai_egg();
