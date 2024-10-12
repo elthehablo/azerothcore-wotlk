@@ -362,6 +362,7 @@ struct npc_janalai_hatcher : public ScriptedAI
     void Reset() override
     {
         ScriptedAI::Reset();
+        scheduler.CancelAll();
         me->SetWalk(true);
         _side = (me->GetPositionY() < 1150);
         _waypoint = 0;
@@ -429,12 +430,7 @@ struct npc_janalai_hatcher : public ScriptedAI
 
     void UpdateAI(uint32 diff) override
     {
-        if (!UpdateVictim())
-            return;
-
         scheduler.Update(diff);
-
-        DoMeleeAttackIfReady();
     }
 
     void JustEngagedWith(Unit* /*who*/) override { }
