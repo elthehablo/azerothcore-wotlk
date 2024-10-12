@@ -223,6 +223,14 @@ struct boss_janalai : public BossAI
             else if (hatchAction == HATCH_ALL && egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
                 egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
         }
+        if (hatchAction == HATCH_RESET)
+        {
+            std::list<Creature* > hatchlingList;
+            me->GetCreaturesWithEntryInRange(hatchlingList, 100.0f, NPC_HATCHLING);
+            for (Creature* hatchling : hatchlingList)
+                hatchling->DespawnOrUnsummon();
+            hatchlingList.clear();
+        }
         eggList.clear();
         return true;
     }
@@ -493,6 +501,11 @@ private:
 struct npc_janalai_egg : public NullCreatureAI
 {
     npc_janalai_egg(Creature* creature) : NullCreatureAI(creature) { }
+
+    void Reset() override
+    {
+        me->SetDisplayId(DISPLAYID_PLACEHOLDER_1);
+    }
 
     void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
     {
