@@ -375,19 +375,23 @@ struct npc_janalai_hatcher : public ScriptedAI
     bool HatchEggs(uint32 num)
     {
         std::list<Creature* > eggList;
+        uint8 hatchCounter = 0;
 
-        me->GetCreaturesWithEntryInRange(eggList, 100.0f, NPC_EGG);
+        me->GetCreaturesWithEntryInRange(eggList, 50.0f, NPC_EGG);
         if (eggList.empty())
             return false;
 
         for (Creature* egg : eggList)
         {
-            if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+            if (hatchCounter == num)
+                break;
+            else if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
                 egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
-                --num;
+                ++hatchCounter;
         }
+        bool fullyHatched = hatchCounter == eggList.size();
         eggList.clear();
-        return num == 0;
+        return fullyHatched;
     }
 
     void MovementInform(uint32, uint32) override
