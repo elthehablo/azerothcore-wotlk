@@ -308,9 +308,13 @@ struct boss_janalai : public BossAI
         {
             if (_bombCount == MAX_BOMB_COUNT)
             {
-                Boom();
-                _isBombing = false;
-                me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
+                scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
+                scheduler.Schedule(3s, [this](TaskContext)
+                {
+                    Boom();
+                    _isBombing = false;
+                    me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
+                });
             }
             context.Repeat(100ms);
         });
@@ -323,7 +327,7 @@ struct boss_janalai : public BossAI
         me->GetCreaturesWithEntryInRange(fireBombs, 100.0f, NPC_FIRE_BOMB);
         for (Creature* bomb : fireBombs)
         {
-            scheduler.Schedule(bombTimer, [this, bomb](TaskContext)
+            scheduler.Schedule(bombTimer, SCHEDULER_GROUP_BOMBING, [this, bomb](TaskContext)
             {
                 me->Yell("Bomb count:", LANG_UNIVERSAL);
                 me->Yell(std::to_string(_bombCount), LANG_UNIVERSAL);
