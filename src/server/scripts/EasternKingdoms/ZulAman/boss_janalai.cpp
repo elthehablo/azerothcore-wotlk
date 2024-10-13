@@ -160,7 +160,7 @@ struct boss_janalai : public BossAI
     void JustDied(Unit* killer) override
     {
         Talk(SAY_DEATH);
-        BossAI::Reset();
+        BossAI::JustDied(killer);
     }
 
     void DamageDealt(Unit* target, uint32& damage, DamageEffectType /*damagetype*/) override
@@ -259,8 +259,7 @@ struct boss_janalai : public BossAI
         {
             dx = float(irand(-area_dx / 2, area_dx / 2));
             dy = float(irand(-area_dy / 2, area_dy / 2));
-
-            Creature* bomb = DoSpawnCreature(NPC_FIRE_BOMB, dx, dy, 0, 0, TEMPSUMMON_TIMED_DESPAWN, 15000);
+            DoSpawnCreature(NPC_FIRE_BOMB, dx, dy, 0, 0, TEMPSUMMON_TIMED_DESPAWN, 15000);
         }
         _bombCount = 0;
     }
@@ -392,8 +391,10 @@ struct npc_janalai_hatcher : public ScriptedAI
             if (hatchCounter == num)
                 break;
             else if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+            {
                 egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
                 ++hatchCounter;
+            }
         }
         bool fullyHatched = hatchCounter == eggList.size();
         eggList.clear();
@@ -420,7 +421,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     _isHatching = false;
                     _waypoint = 3;
-                    _waypoint = MoveToNewWaypoint(_waypoint);
+                    MoveToNewWaypoint(_waypoint);
                     _hasChangedSide = true;
                     scheduler.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
@@ -428,18 +429,17 @@ struct npc_janalai_hatcher : public ScriptedAI
             });
         }
         else
-            _waypoint = MoveToNewWaypoint(_waypoint);
+            MoveToNewWaypoint(_waypoint);
+            ++_waypoint;
     }
 
-    uint8 MoveToNewWaypoint(uint8 waypoint)
+    void MoveToNewWaypoint(uint8 waypoint)
     {
         if (!_isHatching)
         {
             me->GetMotionMaster()->Clear();
             me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
-            return ++_waypoint;
         }
-        return _waypoint;
     }
 
     void UpdateAI(uint32 diff) override
@@ -480,6 +480,7 @@ struct npc_janalai_hatchling : public ScriptedAI
 
     void JustEngagedWith(Unit* who) override
     {
+        ScriptedAI::JustEngagedWith(who);
         ScheduleTimedEvent(7s, [&]{
             DoCastVictim(SPELL_FLAMEBUFFET);
         }, 10s);
