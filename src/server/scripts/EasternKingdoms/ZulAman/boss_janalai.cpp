@@ -329,8 +329,6 @@ struct boss_janalai : public BossAI
         {
             scheduler.Schedule(bombTimer, SCHEDULER_GROUP_BOMBING, [this, bomb](TaskContext)
             {
-                me->Yell("Bomb count:", LANG_UNIVERSAL);
-                me->Yell(std::to_string(_bombCount), LANG_UNIVERSAL);
                 bomb->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 DoCast(bomb, SPELL_FIRE_BOMB_THROW, true);
                 bomb->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
@@ -383,7 +381,7 @@ struct npc_janalai_hatcher : public ScriptedAI
         me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
     }
 
-    bool HatchEggs(uint32 num)
+    bool HatchEggs(uint8 num)
     {
         std::list<Creature* > eggList;
         uint8 hatchCounter = 0;
@@ -395,6 +393,8 @@ struct npc_janalai_hatcher : public ScriptedAI
         for (Creature* egg : eggList)
         {
             if (hatchCounter == num)
+                break;
+            else if (hatchCounter < 3*num)
                 break;
             else if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
             {
@@ -419,11 +419,11 @@ struct npc_janalai_hatcher : public ScriptedAI
             _isHatching = true;
             _hatchNum = 1;
             me->Yell("Start hatching", LANG_UNIVERSAL);
-            scheduler.Schedule(5s, SCHEDULER_GROUP_HATCHING, [this](TaskContext context)
+            scheduler.Schedule(1500ms, SCHEDULER_GROUP_HATCHING, [this](TaskContext context)
             {
                 me->Yell("Hatch no:", LANG_UNIVERSAL);
                 me->Yell(std::to_string(_hatchNum), LANG_UNIVERSAL);
-                if (HatchEggs(_hatchNum))
+                if (!HatchEggs(_hatchNum))
                 {
                     ++_hatchNum;
                 }
@@ -437,7 +437,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     _hasChangedSide = true;
                     context.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
-                context.Repeat(10s);
+                context.Repeat(1500ms);
             });
         }
         else
