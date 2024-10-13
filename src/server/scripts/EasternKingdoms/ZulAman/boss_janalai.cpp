@@ -302,40 +302,39 @@ struct boss_janalai : public BossAI
             });
         }
         //DoCast(Temp, SPELL_SUMMON_PLAYERS, true) // core bug, spell does not work if too far
+        ThrowBombs();
 
         scheduler.Schedule(100ms, SCHEDULER_GROUP_BOMBING, [this](TaskContext context)
         {
-            if (_isBombing)
-                HandleBombSequence();
-            else
-                scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
+            if (_bombCount == MAX_BOMB_COUNT)
+            {
+                Boom();
+                _isBombing = false;
+                me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
+            }
             context.Repeat(100ms);
         });
     }
 
-    void HandleBombSequence()
+    void ThrowBombs()
     {
-        me->Yell("Bomb count:", LANG_UNIVERSAL);
-        me->Yell(std::to_string(_bombCount), LANG_UNIVERSAL);
-        if (_bombCount < MAX_BOMB_COUNT)
+        std::list<Creature*> fireBombs;
+        std::chrono::milliseconds bombTimer = 50ms;
+        me->GetCreaturesWithEntryInRange(fireBombs, 100.0f, NPC_FIRE_BOMB);
+        for (Creature* bomb : fireBombs)
         {
-            std::list<Creature*> fireBombs;
-            me->GetCreaturesWithEntryInRange(fireBombs, 100.0f, NPC_FIRE_BOMB);
-            for (Creature* bomb : fireBombs)
+            scheduler.Schedule(bombTimer, [this, bomb](TaskContext)
             {
+                me->Yell("Bomb count:", LANG_UNIVERSAL);
+                me->Yell(std::to_string(_bombCount), LANG_UNIVERSAL);
                 bomb->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 DoCast(bomb, SPELL_FIRE_BOMB_THROW, true);
                 bomb->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-            }
-            ++_bombCount;
-            fireBombs.clear();
+                ++_bombCount;
+            });
+            bombTimer = bombTimer + 50ms;
         }
-        else
-        {
-            Boom();
-            _isBombing = false;
-            me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
-        }
+        fireBombs.clear();
     }
 
     bool CheckEvadeIfOutOfCombatArea() const override
@@ -445,7 +444,7 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         if (!_isHatching)
         {
-            scheduler.Schedule(700ms, [this, waypoint](TaskContext)
+            scheduler.Schedule(100ms, [this, waypoint](TaskContext)
             {
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
