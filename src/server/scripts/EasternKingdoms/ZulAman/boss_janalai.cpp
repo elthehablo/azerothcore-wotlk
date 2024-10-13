@@ -115,9 +115,6 @@ enum HatchActions
 
 enum Misc
 {
-    DISPLAYID_PLACEHOLDER_1     = 10056,
-    DISPLAYID_PLACEHOLDER_2     = 11686,
-
     MAX_BOMB_COUNT              = 40,
 
     SCHEDULER_GROUP_HATCHING    = 1,
@@ -215,7 +212,7 @@ struct boss_janalai : public BossAI
         {
             if (hatchAction == HATCH_RESET)
                 egg->Respawn();
-            else if (hatchAction == HATCH_ALL && egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+            else if (hatchAction == HATCH_ALL && egg->IsAlive())
                 egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
         }
         if (hatchAction == HATCH_RESET)
@@ -368,24 +365,6 @@ struct npc_janalai_hatcher : public ScriptedAI
         me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
     }
 
-    std::list<Creature* > HatchEggs(std::list<Creature* > eggList)
-    {
-        std::list<Creature* > unhatchedEggs;
-        for (Creature* egg : eggList)
-        {
-            if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
-                unhatchedEggs.emplace_front(egg);
-        }
-        if (!unhatchedEggs.empty())
-        {
-            std::list<Creature* > eggsToHatch = unhatchedEggs;
-            Acore::Containers::RandomResize(eggsToHatch, 3);
-            for (Creature* egg : eggList)
-                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
-        }
-        return unhatchedEggs;
-    }
-
     void MovementInform(uint32, uint32) override
     {
         if (_waypoint == 5)
@@ -406,8 +385,12 @@ struct npc_janalai_hatcher : public ScriptedAI
                 {
                     std::list<Creature* > eggsToHatch(unhatchedEggs);
                     Acore::Containers::RandomResize(eggsToHatch, 3);
+                    LOG_ERROR("server", "Amount of unhatched Eggs: {} resized: {}", std::to_string(unhatchedEggs.size()), std::to_string(eggsToHatch.size()));
+                    uint8 counter = 0;
                     for (Creature* egg : eggsToHatch)
                         egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+                        counter++;
+                    LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
                 }
                 else if (!_hasChangedSide)
                 {
