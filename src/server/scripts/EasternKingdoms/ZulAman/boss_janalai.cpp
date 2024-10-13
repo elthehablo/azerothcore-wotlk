@@ -309,12 +309,14 @@ struct boss_janalai : public BossAI
                 HandleBombSequence();
             else
                 scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
-            context.Repeat(500ms);
+            context.Repeat(1s);
         });
     }
 
     void HandleBombSequence()
     {
+        me->Yell("Bomb count:", LANG_UNIVERSAL);
+        me->Yell(std::to_string(_bombCount), LANG_UNIVERSAL);
         if (_bombCount < MAX_BOMB_COUNT)
         {
             std::list<Creature*> fireBombs;
@@ -440,8 +442,11 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         if (!_isHatching)
         {
-            me->GetMotionMaster()->Clear();
-            me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
+            scheduler.Schedule(2s, [this, waypoint](TaskContext)
+            {
+                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
+            });
         }
     }
 
