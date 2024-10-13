@@ -135,10 +135,6 @@ struct boss_janalai : public BossAI
 
         ScheduleHealthCheckEvent(25, [&]{
             DoCastSelf(SPELL_ENRAGE, true);
-            ScheduleUniqueTimedEvent(5min, [&]{
-                Talk(SAY_BERSERK);
-                DoCastSelf(SPELL_BERSERK);
-            }, EVENT_BERSERK);
         });
 
         ScheduleHealthCheckEvent(35, [&]{
@@ -198,6 +194,10 @@ struct boss_janalai : public BossAI
                 });
             }
         }, 8s);
+        ScheduleUniqueTimedEvent(5min, [&]{
+            Talk(SAY_BERSERK);
+            DoCastSelf(SPELL_BERSERK);
+        }, EVENT_BERSERK);
     }
 
     bool HatchAllEggs(uint32 hatchAction)
@@ -356,7 +356,6 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         ScriptedAI::Reset();
         scheduler.CancelAll();
-        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         _side = (me->GetPositionY() < 1150);
         _waypoint = 0;
         _isHatching = false;
@@ -381,7 +380,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                         unhatchedEggs.emplace_front(egg);
                 }
                 LOG_ERROR("server", "Creature on side {} with {} eggs, {} unhatched", std::to_string(_side), std::to_string(eggList.size()), std::to_string(unhatchedEggs.size()));
-                if (!unhatchedEggs.empty())
+                if (unhatchedEggs.size() > 1)
                 {
                     std::list<Creature* > eggsToHatch(unhatchedEggs);
                     Acore::Containers::RandomResize(eggsToHatch, 3);
@@ -397,14 +396,13 @@ struct npc_janalai_hatcher : public ScriptedAI
                 else if (!_hasChangedSide)
                 {
                     _side = _side ? 0 : 1;
-                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     _isHatching = false;
                     _waypoint = 3;
                     MoveToNewWaypoint(_waypoint);
                     _hasChangedSide = true;
                     context.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
-                context.Repeat(1500ms);
+                context.Repeat(10s);
             });
         }
         else
