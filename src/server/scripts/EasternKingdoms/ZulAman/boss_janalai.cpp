@@ -309,7 +309,7 @@ struct boss_janalai : public BossAI
                 HandleBombSequence();
             else
                 scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
-            context.Repeat(1s);
+            context.Repeat(100ms);
         });
     }
 
@@ -412,8 +412,11 @@ struct npc_janalai_hatcher : public ScriptedAI
         {
             _isHatching = true;
             _hatchNum = 1;
+            me->Yell("Start hatching", LANG_UNIVERSAL);
             scheduler.Schedule(5s, SCHEDULER_GROUP_HATCHING, [this](TaskContext context)
             {
+                me->Yell("Hatch no:", LANG_UNIVERSAL);
+                me->Yell(std::to_string(_hatchNum), LANG_UNIVERSAL);
                 if (HatchEggs(_hatchNum))
                 {
                     ++_hatchNum;
@@ -442,7 +445,7 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         if (!_isHatching)
         {
-            scheduler.Schedule(2s, [this, waypoint](TaskContext)
+            scheduler.Schedule(700ms, [this, waypoint](TaskContext)
             {
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
