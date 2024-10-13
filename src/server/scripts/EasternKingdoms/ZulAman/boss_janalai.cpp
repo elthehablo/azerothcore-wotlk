@@ -79,34 +79,31 @@ enum Creatures
 const int area_dx = 44;
 const int area_dy = 51;
 
-float JanalainPos[1][3] =
-{
-    {-33.93f, 1149.27f, 19}
-};
+const Position janalainPos = {-33.93f, 1149.27f, 19.0f, 0.0f};
 
-float FireWallCoords[4][4] =
+const Position fireWallCoords[4] =
 {
     {-10.13f, 1149.27f, 19, 3.1415f},
     {-33.93f, 1123.90f, 19, 0.5f * 3.1415f},
-    {-54.80f, 1150.08f, 19, 0},
+    {-54.80f, 1150.08f, 19, 0.0f},
     {-33.93f, 1175.68f, 19, 1.5f * 3.1415f}
 };
 
-float hatcherway[2][5][3] =
+const Position hatcherway[2][5] =
 {
     {
-        {-87.46f, 1170.09f, 6},
-        {-74.41f, 1154.75f, 6},
-        {-52.74f, 1153.32f, 19},
-        {-33.37f, 1172.46f, 19},
-        {-33.09f, 1203.87f, 19}
+        {-87.46f, 1170.09f, 6.0f, 0.0f},
+        {-74.41f, 1154.75f, 6.0f, 0.0f},
+        {-52.74f, 1153.32f, 19.0f, 0.0f},
+        {-33.37f, 1172.46f, 19.0f, 0.0f},
+        {-33.09f, 1203.87f, 19.0f, 0.0f}
     },
     {
-        {-86.57f, 1132.85f, 6},
-        {-73.94f, 1146.00f, 6},
-        {-52.29f, 1146.51f, 19},
-        {-33.57f, 1125.72f, 19},
-        {-34.29f, 1095.22f, 19}
+        {-86.57f, 1132.85f, 6.0f, 0.0f},
+        {-73.94f, 1146.00f, 6.0f, 0.0f},
+        {-52.29f, 1146.51f, 19.0f, 0.0f},
+        {-33.57f, 1125.72f, 19.0f, 0.0f},
+        {-34.29f, 1095.22f, 19.0f, 0.0f}
     }
 };
 
@@ -153,7 +150,7 @@ struct boss_janalai : public BossAI
             Talk(SAY_ALL_EGGS);
             me->AttackStop();
             me->GetMotionMaster()->Clear();
-            me->NearTeleportTo(JanalainPos[0][0], JanalainPos[0][1], JanalainPos[0][2], me->GetOrientation());
+            me->SetPosition(janalainPos);
             me->StopMovingOnCurrentPos();
             DoCastSelf(SPELL_HATCH_ALL);
             HatchAllEggs(HATCH_ALL);
@@ -187,8 +184,8 @@ struct boss_janalai : public BossAI
             if (HatchAllEggs(HATCH_RESET))
             {
                 Talk(SAY_SUMMON_HATCHER);
-                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[0][0][0], hatcherway[0][0][1], hatcherway[0][0][2], 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
-                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[1][0][0], hatcherway[1][0][1], hatcherway[1][0][2], 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
+                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[0][0], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
+                me->SummonCreature(NPC_AMANI_HATCHER, hatcherway[1][0], TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000);
             }
         }, 90s);
         ScheduleTimedEvent(8s, [&]{
@@ -244,8 +241,8 @@ struct boss_janalai : public BossAI
             for (uint8 j = 0; j < wallNum; j++)
             {
                 Creature* wall = wallNum == 3
-                        ? me->SummonCreature(NPC_FIRE_BOMB, FireWallCoords[i][0], FireWallCoords[i][1] + 5 * (j - 1), FireWallCoords[i][2], FireWallCoords[i][3], TEMPSUMMON_TIMED_DESPAWN, 15000)
-                        : me->SummonCreature(NPC_FIRE_BOMB, FireWallCoords[i][0] - 2 + 4 * j, FireWallCoords[i][1], FireWallCoords[i][2], FireWallCoords[i][3], TEMPSUMMON_TIMED_DESPAWN, 15000);
+                        ? me->SummonCreature(NPC_FIRE_BOMB, fireWallCoords[i].GetPositionX(), fireWallCoords[i].GetPositionY() + 5 * (j - 1), fireWallCoords[i].GetPositionZ(), fireWallCoords[i].GetOrientation(), TEMPSUMMON_TIMED_DESPAWN, 15000)
+                        : me->SummonCreature(NPC_FIRE_BOMB, fireWallCoords[i].GetPositionX() - 2 + 4 * j, fireWallCoords[i].GetPositionY(), fireWallCoords[i].GetPositionZ(), fireWallCoords[i].GetOrientation(), TEMPSUMMON_TIMED_DESPAWN, 15000);
 
                 if (wall)
                 {
@@ -289,7 +286,7 @@ struct boss_janalai : public BossAI
         Talk(SAY_FIRE_BOMBS);
         me->AttackStop();
         me->GetMotionMaster()->Clear();
-        me->NearTeleportTo(JanalainPos[0][0], JanalainPos[0][1], JanalainPos[0][2], me->GetOrientation());
+        me->SetPosition(janalainPos);
         me->StopMovingOnCurrentPos();
         DoCastSelf(SPELL_FIRE_BOMB_CHANNEL);
 
@@ -302,7 +299,7 @@ struct boss_janalai : public BossAI
             map->DoForAllPlayers([&](Player* player)
             {
                 if (player->IsAlive())
-                    DoTeleportPlayer(player, JanalainPos[0][0] - 5 + rand() % 10, JanalainPos[0][1] - 5 + rand() % 10, JanalainPos[0][2], 0);
+                    DoTeleportPlayer(player, janalainPos.GetPositionX() - 5 + rand() % 10, janalainPos.GetPositionY() - 5 + rand() % 10, janalainPos.GetPositionZ(), 0.0f);
             });
         }
         //DoCast(Temp, SPELL_SUMMON_PLAYERS, true) // core bug, spell does not work if too far
@@ -313,6 +310,7 @@ struct boss_janalai : public BossAI
                 HandleBombSequence();
             else
                 scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
+            context.Repeat(500ms);
         });
     }
 
@@ -371,7 +369,7 @@ struct npc_janalai_hatcher : public ScriptedAI
     {
         ScriptedAI::Reset();
         scheduler.CancelAll();
-        me->SetWalk(true);
+        me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         _side = (me->GetPositionY() < 1150);
         _waypoint = 0;
         _isHatching = false;
@@ -419,6 +417,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                 else if (!_hasChangedSide)
                 {
                     _side = _side ? 0 : 1;
+                    me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     _isHatching = false;
                     _waypoint = 3;
                     _waypoint = MoveToNewWaypoint(_waypoint);
@@ -437,7 +436,7 @@ struct npc_janalai_hatcher : public ScriptedAI
         if (!_isHatching)
         {
             me->GetMotionMaster()->Clear();
-            me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint][0], hatcherway[_side][waypoint][1], hatcherway[_side][waypoint][2]);
+            me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
             return ++_waypoint;
         }
         return _waypoint;
@@ -472,9 +471,9 @@ struct npc_janalai_hatchling : public ScriptedAI
     {
         scheduler.CancelAll();
         if (me->GetPositionY() > 1150)
-            me->GetMotionMaster()->MovePoint(0, hatcherway[0][3][0] + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[0][3][2]);
+            me->GetMotionMaster()->MovePoint(0, hatcherway[0][3].GetPositionX() + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[0][3].GetPositionY());
         else
-            me->GetMotionMaster()->MovePoint(0, hatcherway[1][3][0] + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[1][3][2]);
+            me->GetMotionMaster()->MovePoint(0, hatcherway[1][3].GetPositionX() + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[1][3].GetPositionY());
 
         me->SetDisableGravity(true);
     }
