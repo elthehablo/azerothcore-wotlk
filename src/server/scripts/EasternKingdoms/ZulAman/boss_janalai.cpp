@@ -303,7 +303,7 @@ struct boss_janalai : public BossAI
         //DoCast(Temp, SPELL_SUMMON_PLAYERS, true) // core bug, spell does not work if too far
         ThrowBombs();
 
-        scheduler.Schedule(100ms, SCHEDULER_GROUP_BOMBING, [this](TaskContext context)
+        scheduler.Schedule(1s, SCHEDULER_GROUP_BOMBING, [this](TaskContext context)
         {
             if (_bombCount == MAX_BOMB_COUNT)
             {
@@ -316,7 +316,7 @@ struct boss_janalai : public BossAI
                     me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
                 });
             }
-            context.Repeat(100ms);
+            context.Repeat(1s);
         });
     }
 
@@ -405,7 +405,7 @@ struct npc_janalai_hatcher : public ScriptedAI
         me->Yell("Hatch counter versus eggList size:", LANG_UNIVERSAL);
         me->Yell(std::to_string(hatchCounter), LANG_UNIVERSAL);
         me->Yell(std::to_string(eggList.size()), LANG_UNIVERSAL);
-        bool fullyHatched = hatchCounter == eggList.size();
+        bool fullyHatched = hatchCounter < eggList.size();
         eggList.clear();
         return fullyHatched;
     }
@@ -423,7 +423,7 @@ struct npc_janalai_hatcher : public ScriptedAI
             {
                 me->Yell("Hatch no:", LANG_UNIVERSAL);
                 me->Yell(std::to_string(_hatchNum), LANG_UNIVERSAL);
-                if (!HatchEggs(_hatchNum))
+                if (HatchEggs(_hatchNum))
                 {
                     ++_hatchNum;
                 }
