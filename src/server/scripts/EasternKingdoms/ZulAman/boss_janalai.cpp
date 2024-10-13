@@ -398,7 +398,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                 std::list<Creature* > unhatchedEggs;
                 for (Creature* egg : eggList)
                 {
-                    if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+                    if (egg->IsAlive())
                         unhatchedEggs.emplace_front(egg);
                 }
                 LOG_ERROR("server", "Creature on side {} with {} eggs, {} unhatched", std::to_string(_side), std::to_string(eggList.size()), std::to_string(unhatchedEggs.size()));
