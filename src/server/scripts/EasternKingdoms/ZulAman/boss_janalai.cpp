@@ -120,8 +120,7 @@ enum Misc
 
     MAX_BOMB_COUNT              = 40,
 
-    SCHEDULER_GROUP_BOMBING     = 1,
-    SCHEDULER_GROUP_HATCHING    = 2,
+    SCHEDULER_GROUP_HATCHING    = 1,
 
     EVENT_BERSERK               = 0
 };
@@ -134,7 +133,6 @@ struct boss_janalai : public BossAI
     {
         BossAI::Reset();
         HatchAllEggs(HATCH_RESET);
-        _bombCount = 0;
         _isBombing = false;
         _isFlameBreathing = false;
 
@@ -303,20 +301,12 @@ struct boss_janalai : public BossAI
         //DoCast(Temp, SPELL_SUMMON_PLAYERS, true) // core bug, spell does not work if too far
         ThrowBombs();
 
-        scheduler.Schedule(1s, SCHEDULER_GROUP_BOMBING, [this](TaskContext context)
+        scheduler.Schedule(10s, [this](TaskContext)
         {
-            if (_bombCount == MAX_BOMB_COUNT)
-            {
-                context.CancelGroup(SCHEDULER_GROUP_BOMBING);
-                scheduler.Schedule(5s, [this](TaskContext)
-                {
-                    Boom();
-                    _isBombing = false;
-                    _bombCount = 0;
-                    me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
-                });
-            }
-            context.Repeat(1s);
+            Boom();
+            _isBombing = false;
+
+            me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
         });
     }
 
@@ -327,12 +317,11 @@ struct boss_janalai : public BossAI
         me->GetCreaturesWithEntryInRange(fireBombs, 100.0f, NPC_FIRE_BOMB);
         for (Creature* bomb : fireBombs)
         {
-            scheduler.Schedule(bombTimer, SCHEDULER_GROUP_BOMBING, [this, bomb](TaskContext)
+            scheduler.Schedule(bombTimer, [this, bomb](TaskContext)
             {
                 bomb->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 DoCast(bomb, SPELL_FIRE_BOMB_THROW, true);
                 bomb->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                ++_bombCount;
             });
             bombTimer = bombTimer + 50ms;
         }
@@ -344,7 +333,6 @@ struct boss_janalai : public BossAI
         return me->GetPositionZ() <= 12.0f;
     }
 private:
-    uint8 _bombCount;
     bool _isBombing;
     bool _isFlameBreathing;
 };
