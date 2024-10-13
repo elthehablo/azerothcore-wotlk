@@ -388,14 +388,11 @@ struct npc_janalai_hatcher : public ScriptedAI
 
     void MovementInform(uint32, uint32) override
     {
-        me->Yell("Current waypoint", LANG_UNIVERSAL);
-        me->Yell(std::to_string(_waypoint), LANG_UNIVERSAL);
         if (_waypoint == 5)
         {
             _isHatching = true;
             std::list<Creature* > eggList;
             me->GetCreaturesWithEntryInRange(eggList, 50.0f, NPC_EGG);
-            me->Yell("Start hatching", LANG_UNIVERSAL);
             scheduler.Schedule(1500ms, SCHEDULER_GROUP_HATCHING, [this, eggList](TaskContext context)
             {
                 std::list<Creature* > unhatchedEggs;
@@ -404,6 +401,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
                         unhatchedEggs.emplace_front(egg);
                 }
+                LOG_ERROR("server", "Creature on side {} with {} eggs, {} unhatched", std::to_string(_side), std::to_string(eggList.size()), std::to_string(unhatchedEggs.size());
                 if (!unhatchedEggs.empty())
                 {
                     std::list<Creature* > eggsToHatch(unhatchedEggs);
