@@ -430,8 +430,10 @@ struct npc_janalai_hatcher : public ScriptedAI
             });
         }
         else
+        {
             MoveToNewWaypoint(_waypoint);
             ++_waypoint;
+        }
     }
 
     void MoveToNewWaypoint(uint8 waypoint)
