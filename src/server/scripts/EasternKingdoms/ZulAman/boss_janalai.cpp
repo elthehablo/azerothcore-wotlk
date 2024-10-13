@@ -487,7 +487,7 @@ struct npc_janalai_egg : public NullCreatureAI
 
     void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
     {
-        if (spell->Id == SPELL_HATCH_EGG)
+        if (spell->Id == SPELL_HATCH_EGG_ALL || spell->Id == SPELL_HATCH_EGG_SINGULAR)
             DoCastSelf(SPELL_SUMMON_HATCHLING);
     }
 };
