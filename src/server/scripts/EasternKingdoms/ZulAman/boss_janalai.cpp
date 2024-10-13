@@ -313,7 +313,7 @@ struct boss_janalai : public BossAI
     void ThrowBombs()
     {
         std::list<Creature*> fireBombs;
-        std::chrono::milliseconds bombTimer = 50ms;
+        std::chrono::milliseconds bombTimer = 100ms;
         me->GetCreaturesWithEntryInRange(fireBombs, 100.0f, NPC_FIRE_BOMB);
         for (Creature* bomb : fireBombs)
         {
@@ -323,7 +323,7 @@ struct boss_janalai : public BossAI
                 DoCast(bomb, SPELL_FIRE_BOMB_THROW, true);
                 bomb->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
             });
-            bombTimer = bombTimer + 50ms;
+            bombTimer = bombTimer + 100ms;
         }
         fireBombs.clear();
     }
@@ -369,33 +369,22 @@ struct npc_janalai_hatcher : public ScriptedAI
         me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
     }
 
-    bool HatchEggs(uint8 num)
+    std::list<Creature* > HatchEggs(std::list<Creature* > eggList)
     {
-        std::list<Creature* > eggList;
-        uint8 hatchCounter = 0;
-
-        me->GetCreaturesWithEntryInRange(eggList, 50.0f, NPC_EGG);
-        if (eggList.empty())
-            return false;
-
+        std::list<Creature* > unhatchedEggs;
         for (Creature* egg : eggList)
         {
-            if (hatchCounter == num)
-                break;
-            else if (hatchCounter > 3*num)
-                break;
-            else if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
-            {
-                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
-                ++hatchCounter;
-            }
+            if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+                unhatchedEggs.emplace_front(egg);
         }
-        me->Yell("Hatch counter versus eggList size:", LANG_UNIVERSAL);
-        me->Yell(std::to_string(hatchCounter), LANG_UNIVERSAL);
-        me->Yell(std::to_string(eggList.size()), LANG_UNIVERSAL);
-        bool fullyHatched = hatchCounter < eggList.size();
-        eggList.clear();
-        return fullyHatched;
+        if (!unhatchedEggs.empty())
+        {
+            std::list<Creature* > eggsToHatch = unhatchedEggs;
+            Acore::Containers::RandomResize(eggsToHatch, 3);
+            for (Creature* egg : eggList)
+                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+        }
+        return unhatchedEggs;
     }
 
     void MovementInform(uint32, uint32) override
@@ -406,14 +395,24 @@ struct npc_janalai_hatcher : public ScriptedAI
         {
             _isHatching = true;
             _hatchNum = 1;
+            std::list<Creature* > eggList;
+            uint8 hatchCounter = 0;
+            me->GetCreaturesWithEntryInRange(eggList, 50.0f, NPC_EGG);
             me->Yell("Start hatching", LANG_UNIVERSAL);
-            scheduler.Schedule(1500ms, SCHEDULER_GROUP_HATCHING, [this](TaskContext context)
+            scheduler.Schedule(1500ms, SCHEDULER_GROUP_HATCHING, [this, eggList](TaskContext context)
             {
-                me->Yell("Hatch no:", LANG_UNIVERSAL);
-                me->Yell(std::to_string(_hatchNum), LANG_UNIVERSAL);
-                if (HatchEggs(_hatchNum))
+                std::list<Creature* > unhatchedEggs;
+                for (Creature* egg : eggList)
                 {
-                    ++_hatchNum;
+                    if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
+                        unhatchedEggs.emplace_front(egg);
+                }
+                if (!unhatchedEggs.empty())
+                {
+                    std::list<Creature* > eggsToHatch(unhatchedEggs);
+                    Acore::Containers::RandomResize(eggsToHatch, 3);
+                    for (Creature* egg : eggsToHatch)
+                        egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
                 }
                 else if (!_hasChangedSide)
                 {
