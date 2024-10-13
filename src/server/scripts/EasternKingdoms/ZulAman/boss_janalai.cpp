@@ -308,7 +308,7 @@ struct boss_janalai : public BossAI
             if (_bombCount == MAX_BOMB_COUNT)
             {
                 context.CancelGroup(SCHEDULER_GROUP_BOMBING);
-                scheduler.Schedule(3s, [this](TaskContext)
+                scheduler.Schedule(5s, [this](TaskContext)
                 {
                     Boom();
                     _isBombing = false;
