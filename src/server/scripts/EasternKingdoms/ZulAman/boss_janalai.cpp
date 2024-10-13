@@ -389,6 +389,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     for (Creature* egg : eggsToHatch)
                     {
                         egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+                        egg->AI()->DoCastSelf(SPELL_SUMMON_HATCHLING);
                         counter++;
                     }
                     LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
@@ -402,7 +403,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     _hasChangedSide = true;
                     context.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
-                context.Repeat(10s);
+                context.Repeat(1500ms);
             });
         }
         else
@@ -482,22 +483,10 @@ private:
     InstanceScript* _instance;
 };
 
-struct npc_janalai_egg : public NullCreatureAI
-{
-    npc_janalai_egg(Creature* creature) : NullCreatureAI(creature) { }
-
-    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
-    {
-        if (spell->Id == SPELL_HATCH_EGG)
-            DoCastSelf(SPELL_SUMMON_HATCHLING);
-    }
-};
-
 void AddSC_boss_janalai()
 {
     RegisterZulAmanCreatureAI(boss_janalai);
     RegisterZulAmanCreatureAI(npc_janalai_firebomb);
     RegisterZulAmanCreatureAI(npc_janalai_hatcher);
     RegisterZulAmanCreatureAI(npc_janalai_hatchling);
-    RegisterZulAmanCreatureAI(npc_janalai_egg);
 }
