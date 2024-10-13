@@ -301,7 +301,7 @@ struct boss_janalai : public BossAI
         //DoCast(Temp, SPELL_SUMMON_PLAYERS, true) // core bug, spell does not work if too far
         ThrowBombs();
 
-        scheduler.Schedule(10s, [this](TaskContext)
+        scheduler.Schedule(11s, [this](TaskContext)
         {
             Boom();
             _isBombing = false;
@@ -382,7 +382,7 @@ struct npc_janalai_hatcher : public ScriptedAI
         {
             if (hatchCounter == num)
                 break;
-            else if (hatchCounter < 3*num)
+            else if (hatchCounter > 3*num)
                 break;
             else if (egg->GetDisplayId() != DISPLAYID_PLACEHOLDER_2)
             {
