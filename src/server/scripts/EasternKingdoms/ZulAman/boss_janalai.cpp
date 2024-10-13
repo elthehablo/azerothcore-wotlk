@@ -374,7 +374,8 @@ struct npc_janalai_hatcher : public ScriptedAI
         _isHatching = false;
         _hasChangedSide = false;
         _hatchNum = 0;
-        _waypoint = MoveToNewWaypoint(_waypoint);
+        me->GetMotionMaster()->Clear();
+        me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
     }
 
     bool HatchEggs(uint32 num)
