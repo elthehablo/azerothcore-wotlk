@@ -378,20 +378,9 @@ struct npc_janalai_hatcher : public ScriptedAI
                     if (egg->IsAlive())
                         unhatchedEggs.emplace_front(egg);
                 }
-                LOG_ERROR("server", "Creature on side {} with {} eggs, {} unhatched", std::to_string(_side), std::to_string(eggList.size()), std::to_string(unhatchedEggs.size()));
-                if (unhatchedEggs.size() > 1)
-                {
-                    std::list<Creature* > eggsToHatch(unhatchedEggs);
-                    Acore::Containers::RandomResize(eggsToHatch, 3);
-                    LOG_ERROR("server", "Amount of unhatched Eggs: {} resized: {}", std::to_string(unhatchedEggs.size()), std::to_string(eggsToHatch.size()));
-                    uint8 counter = 0;
-                    for (Creature* egg : eggsToHatch)
-                    {
-                        egg->AI()->DoCastSelf(SPELL_HATCH_EGG_SINGULAR);
-                        counter++;
-                    }
-                    LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
-                }
+                Acore::Containers::RandomResize(unhatchedEggs, 1);
+                if (Creature* egg = unhatchedEggs.front())
+                    egg->AI()->DoCastSelf(SPELL_HATCH_EGG_SINGULAR);
                 else if (!_hasChangedSide)
                 {
                     _side = _side ? 0 : 1;
