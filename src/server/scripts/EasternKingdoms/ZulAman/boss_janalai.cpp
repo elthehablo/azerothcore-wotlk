@@ -213,7 +213,7 @@ struct boss_janalai : public BossAI
             if (hatchAction == HATCH_RESET)
                 egg->Respawn();
             else if (hatchAction == HATCH_ALL && egg->IsAlive())
-                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+                HatchEgg(egg);
         }
         if (hatchAction == HATCH_RESET)
         {
@@ -225,6 +225,12 @@ struct boss_janalai : public BossAI
         }
         eggList.clear();
         return true;
+    }
+
+    void HatchEgg(Creature* egg)
+    {
+        egg->AI()->DoCastSelf(SPELL_HATCH_EGG, true);
+        egg->AI()->DoCastSelf(SPELL_SUMMON_HATCHLING, true);
     }
 
     void FireWall()
@@ -388,8 +394,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     uint8 counter = 0;
                     for (Creature* egg : eggsToHatch)
                     {
-                        egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
-                        egg->AI()->DoCastSelf(SPELL_SUMMON_HATCHLING);
+                        HatchEgg(egg);
                         counter++;
                     }
                     LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
@@ -423,6 +428,12 @@ struct npc_janalai_hatcher : public ScriptedAI
                 me->GetMotionMaster()->MovePoint(0, hatcherway[_side][waypoint]);
             });
         }
+    }
+
+    void HatchEgg(Creature* egg)
+    {
+        egg->AI()->DoCastSelf(SPELL_HATCH_EGG, true);
+        egg->AI()->DoCastSelf(SPELL_SUMMON_HATCHLING, true);
     }
 
     void UpdateAI(uint32 diff) override
