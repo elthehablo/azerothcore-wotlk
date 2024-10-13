@@ -261,7 +261,6 @@ struct boss_janalai : public BossAI
             dy = float(irand(-area_dy / 2, area_dy / 2));
             DoSpawnCreature(NPC_FIRE_BOMB, dx, dy, 0, 0, TEMPSUMMON_TIMED_DESPAWN, 15000);
         }
-        _bombCount = 0;
     }
 
     void Boom()
@@ -308,11 +307,12 @@ struct boss_janalai : public BossAI
         {
             if (_bombCount == MAX_BOMB_COUNT)
             {
-                scheduler.CancelGroup(SCHEDULER_GROUP_BOMBING);
+                context.CancelGroup(SCHEDULER_GROUP_BOMBING);
                 scheduler.Schedule(3s, [this](TaskContext)
                 {
                     Boom();
                     _isBombing = false;
+                    _bombCount = 0;
                     me->RemoveAurasDueToSpell(SPELL_FIRE_BOMB_CHANNEL);
                 });
             }
@@ -402,6 +402,9 @@ struct npc_janalai_hatcher : public ScriptedAI
                 ++hatchCounter;
             }
         }
+        me->Yell("Hatch counter versus eggList size:", LANG_UNIVERSAL);
+        me->Yell(std::to_string(hatchCounter), LANG_UNIVERSAL);
+        me->Yell(std::to_string(eggList.size()), LANG_UNIVERSAL);
         bool fullyHatched = hatchCounter == eggList.size();
         eggList.clear();
         return fullyHatched;
@@ -432,7 +435,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     _waypoint = 3;
                     MoveToNewWaypoint(_waypoint);
                     _hasChangedSide = true;
-                    scheduler.CancelGroup(SCHEDULER_GROUP_HATCHING);
+                    context.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
                 context.Repeat(10s);
             });
