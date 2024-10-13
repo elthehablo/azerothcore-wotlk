@@ -61,7 +61,8 @@ enum Spells
     SPELL_FIRE_BOMB_DAMAGE      = 42630,
 
     // Hatcher Spells
-    SPELL_HATCH_EGG             = 42471,   // 43734
+    SPELL_HATCH_EGG_ALL         = 42471,
+    SPELL_HATCH_EGG_SINGULAR    = 43734,
     SPELL_SUMMON_HATCHLING      = 42493,
 
     // Hatchling Spells
@@ -203,18 +204,16 @@ struct boss_janalai : public BossAI
     bool HatchAllEggs(uint32 hatchAction)
     {
         std::list<Creature* > eggList;
-
         me->GetCreaturesWithEntryInRange(eggList, 100.0f, NPC_EGG);
         if (eggList.empty())
             return false;
-
-        for (Creature* egg : eggList)
-        {
-            if (hatchAction == HATCH_RESET)
+        
+        if (hatchAction == HATCH_RESET)
+            for (Creature* egg : eggList)
                 egg->Respawn();
-            else if (hatchAction == HATCH_ALL && egg->IsAlive())
-                egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
-        }
+        else if (hatchAction == HATCH_ALL)
+            DoCastSelf(SPELL_HATCH_EGG_ALL);
+
         if (hatchAction == HATCH_RESET)
         {
             std::list<Creature* > hatchlingList;
@@ -388,7 +387,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     uint8 counter = 0;
                     for (Creature* egg : eggsToHatch)
                     {
-                        egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
+                        egg->AI()->DoCastSelf(SPELL_HATCH_EGG_SINGULAR);
                         counter++;
                     }
                     LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
@@ -402,7 +401,7 @@ struct npc_janalai_hatcher : public ScriptedAI
                     _hasChangedSide = true;
                     context.CancelGroup(SCHEDULER_GROUP_HATCHING);
                 }
-                context.Repeat(10s);
+                context.Repeat(1500ms);
             });
         }
         else
