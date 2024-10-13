@@ -486,6 +486,7 @@ struct npc_janalai_hatchling : public ScriptedAI
             me->GetMotionMaster()->MovePoint(0, hatcherway[1][3].GetPositionX() + rand() % 4 - 2, 1150.0f + rand() % 4 - 2, hatcherway[1][3].GetPositionY());
 
         me->SetDisableGravity(true);
+        me->SetInCombatWithZone();
     }
 
     void JustEngagedWith(Unit* who) override
