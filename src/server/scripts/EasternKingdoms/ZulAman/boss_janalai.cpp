@@ -364,7 +364,6 @@ struct npc_janalai_hatcher : public ScriptedAI
         _waypoint = 0;
         _isHatching = false;
         _hasChangedSide = false;
-        _hatchNum = 0;
         me->GetMotionMaster()->Clear();
         me->GetMotionMaster()->MovePoint(0, hatcherway[_side][0]);
     }
@@ -394,9 +393,7 @@ struct npc_janalai_hatcher : public ScriptedAI
         if (_waypoint == 5)
         {
             _isHatching = true;
-            _hatchNum = 1;
             std::list<Creature* > eggList;
-            uint8 hatchCounter = 0;
             me->GetCreaturesWithEntryInRange(eggList, 50.0f, NPC_EGG);
             me->Yell("Start hatching", LANG_UNIVERSAL);
             scheduler.Schedule(1500ms, SCHEDULER_GROUP_HATCHING, [this, eggList](TaskContext context)
@@ -458,7 +455,6 @@ struct npc_janalai_hatcher : public ScriptedAI
 private:
     InstanceScript* _instance;
     uint8 _side;
-    uint8 _hatchNum;
     uint8 _waypoint;
     bool _isHatching;
     bool _hasChangedSide;
