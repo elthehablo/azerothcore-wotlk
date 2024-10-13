@@ -388,8 +388,10 @@ struct npc_janalai_hatcher : public ScriptedAI
                     LOG_ERROR("server", "Amount of unhatched Eggs: {} resized: {}", std::to_string(unhatchedEggs.size()), std::to_string(eggsToHatch.size()));
                     uint8 counter = 0;
                     for (Creature* egg : eggsToHatch)
+                    {
                         egg->AI()->DoCastSelf(SPELL_HATCH_EGG);
                         counter++;
+                    }
                     LOG_ERROR("server", "Amount of counts of spells cast {}", std::to_string(counter));
                 }
                 else if (!_hasChangedSide)
