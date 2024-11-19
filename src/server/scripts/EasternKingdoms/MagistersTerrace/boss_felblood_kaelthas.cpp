@@ -108,27 +108,25 @@ struct boss_felblood_kaelthas : public BossAI
     {
         Talk(firstTime ? SAY_GRAVITY_LAPSE : SAY_RECAST_GRAVITY);
         DoCastSelf(SPELL_GRAVITY_LAPSE_INITIAL);
-        ScheduleUniqueTimedEvent(2s, [&]{
+        scheduler.Schedule(2s, [this](TaskContext){
             LapseAction(ACTION_TELEPORT_PLAYERS);
-        }, EVENT_GRAVITY_LAPSE_2);
-        ScheduleUniqueTimedEvent(3s, [&]{
+        }).Schedule(3s, [this](TaskContext){
             LapseAction(ACTION_KNOCKUP);
-        }, EVENT_GRAVITY_LAPSE_3);
-        ScheduleUniqueTimedEvent(4s, [&]{
+        }).Schedule(4s, [this](TaskContext){
             LapseAction(ACTION_ALLOW_FLY);
             for (uint8 i = 0; i < 3; ++i)
                 DoCastSelf(SPELL_SUMMON_ARCANE_SPHERE, true);
             DoCastSelf(SPELL_GRAVITY_LAPSE_CHANNEL);
-            ScheduleUniqueTimedEvent(30s, [&]{
+            scheduler.Schedule(30s, [this](TaskContext){
                 LapseAction(ACTION_REMOVE_FLY);
                 me->InterruptNonMeleeSpells(false);
                 Talk(SAY_TIRED);
                 DoCastSelf(SPELL_POWER_FEEDBACK);
-                ScheduleUniqueTimedEvent(10s, [&]{
+                scheduler.Schedule(10s, [this](TaskContext){
                     GravityLapseSequence(false);
-                }, EVENT_GRAVITY_LAPSE_1_2);
-            }, EVENT_GRAVITY_LAPSE_5);
-        }, EVENT_GRAVITY_LAPSE_4);
+                });
+            });
+        });
     }
 
     void InitializeAI() override
@@ -174,6 +172,8 @@ struct boss_felblood_kaelthas : public BossAI
             Talk(SAY_AGGRO);
             _hasDoneIntro = true;
             ScheduleUniqueTimedEvent(35s, [&]{
+                me->SetReactState(REACT_AGGRESSIVE);
+                me->SetImmuneToAll(false);
                 me->SetInCombatWithZone();
             }, EVENT_INIT_COMBAT);
         }
