@@ -179,6 +179,7 @@ struct boss_felblood_kaelthas : public BossAI
                 me->SetRegeneratingHealth(false);
                 me->SetUnitFlag(UNIT_FLAG_DISABLE_MOVE);
                 me->SetImmuneToAll(true);
+                me->SetStandState(UNIT_STAND_STATE_KNEEL);
                 me->CombatStop();
                 me->SetReactState(REACT_PASSIVE);
                 LapseAction(ACTION_REMOVE_FLY);
