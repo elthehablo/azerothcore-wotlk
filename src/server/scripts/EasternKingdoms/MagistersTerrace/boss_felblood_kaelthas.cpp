@@ -91,6 +91,44 @@ struct boss_felblood_kaelthas : public BossAI
         _gravityLapseCounter = 0;
         me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
         me->SetImmuneToAll(false);
+        ScheduleHealthCheckEvent(50, [&]{
+            me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, true);
+            DoCastSelf(SPELL_TELEPORT_CENTER, true);
+            scheduler.CancelAll();
+
+            me->StopMoving();
+            me->GetMotionMaster()->Clear();
+            me->GetMotionMaster()->MoveIdle();
+
+            GravityLapseSequence(true);
+        });
+    }
+
+    void GravityLapseSequence(bool firstTime)
+    {
+        Talk(firstTime ? SAY_GRAVITY_LAPSE : SAY_RECAST_GRAVITY);
+        DoCastSelf(SPELL_GRAVITY_LAPSE_INITIAL);
+        ScheduleUniqueTimedEvent(2s, [&]{
+            LapseAction(ACTION_TELEPORT_PLAYERS);
+        }, EVENT_GRAVITY_LAPSE_2);
+        ScheduleUniqueTimedEvent(3s, [&]{
+            LapseAction(ACTION_KNOCKUP);
+        }, EVENT_GRAVITY_LAPSE_3);
+        ScheduleUniqueTimedEvent(4s, [&]{
+            LapseAction(ACTION_ALLOW_FLY);
+            for (uint8 i = 0; i < 3; ++i)
+                DoCastSelf(SPELL_SUMMON_ARCANE_SPHERE, true);
+            DoCastSelf(SPELL_GRAVITY_LAPSE_CHANNEL);
+            ScheduleUniqueTimedEvent(30s, [&]{
+                LapseAction(ACTION_REMOVE_FLY);
+                me->InterruptNonMeleeSpells(false);
+                Talk(SAY_TIRED);
+                DoCastSelf(SPELL_POWER_FEEDBACK);
+                ScheduleUniqueTimedEvent(10s, [&]{
+                    GravityLapseSequence(false);
+                }, EVENT_GRAVITY_LAPSE_1_2);
+            }, EVENT_GRAVITY_LAPSE_5);
+        }, EVENT_GRAVITY_LAPSE_4);
     }
 
     void InitializeAI() override
@@ -110,13 +148,23 @@ struct boss_felblood_kaelthas : public BossAI
     {
         BossAI::JustEngagedWith(who);
 
-        //events.ScheduleEvent(EVENT_SPELL_FIREBALL, 0);
-        //events.ScheduleEvent(EVENT_SPELL_PHOENIX, 15000);
-        //events.ScheduleEvent(EVENT_SPELL_FLAMESTRIKE, 22000);
-        //events.ScheduleEvent(EVENT_CHECK_HEALTH, 1000);
+        ScheduleTimedEvent(0ms, [&]{
+            DoCastVictim(SPELL_FIREBALL);
+        }, 3000ms, 4500ms);
+        ScheduleTimedEvent(15s, [&]{
+            Talk(SAY_PHOENIX);
+            DoCastSelf(SPELL_PHOENIX);
+        }, 60s);
+        ScheduleTimedEvent(22s, [&]{
+            DoCastRandomTarget(SPELL_FLAMESTRIKE_SUMMON, 0, 100.0f);
+            Talk(SAY_FLAMESTRIKE);
+        }, 25s);
 
-        //if (IsHeroic())
-            //events.ScheduleEvent(EVENT_SPELL_SHOCK_BARRIER, 50000);
+        if (IsHeroic())
+            ScheduleTimedEvent(50s, [&]{
+                DoCastSelf(SPELL_SHOCK_BARRIER, true);
+                me->CastCustomSpell(SPELL_PYROBLAST, SPELLVALUE_MAX_TARGETS, 1, (Unit*)nullptr, false);
+            }, 50s);
     }
 
     void MoveInLineOfSight(Unit* who) override
@@ -125,12 +173,14 @@ struct boss_felblood_kaelthas : public BossAI
         {
             Talk(SAY_AGGRO);
             _hasDoneIntro = true;
-            //events2.ScheduleEvent(EVENT_INIT_COMBAT, 35000);
+            ScheduleUniqueTimedEvent(35s, [&]{
+                me->SetInCombatWithZone();
+            }, EVENT_INIT_COMBAT);
         }
         BossAI::MoveInLineOfSight(who);
     }
 
-    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask) override
     {
         if (damage >= me->GetHealth())
         {
@@ -142,16 +192,20 @@ struct boss_felblood_kaelthas : public BossAI
                 me->SetImmuneToAll(true);
                 me->CombatStop();
                 me->SetReactState(REACT_PASSIVE);
-                //LapseAction(ACTION_REMOVE_FLY);
+                LapseAction(ACTION_REMOVE_FLY);
                 scheduler.CancelAll();
-                //events2.ScheduleEvent(EVENT_FINISH_TALK, 6000);
+                ScheduleUniqueTimedEvent(6s, [&]{
+                    me->KillSelf();
+                }, EVENT_FINISH_TALK);
                 Talk(SAY_DEATH);
             }
         }
+        BossAI::DamageTaken(attacker, damage, damagetype, damageSchoolMask);
     }
 
     void LapseAction(uint8 action)
     {
+        _gravityLapseCounter = 0;
         me->GetMap()->DoForAllPlayers([&](Player* player)
         {
             if (action == ACTION_TELEPORT_PLAYERS)
