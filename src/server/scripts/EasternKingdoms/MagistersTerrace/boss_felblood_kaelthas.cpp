@@ -56,20 +56,6 @@ enum Spells
 
 enum Misc
 {
-    EVENT_INIT_COMBAT           = 1,
-    EVENT_SPELL_FIREBALL        = 2,
-    EVENT_SPELL_PHOENIX         = 3,
-    EVENT_SPELL_FLAMESTRIKE     = 4,
-    EVENT_SPELL_SHOCK_BARRIER   = 5,
-    EVENT_CHECK_HEALTH          = 6,
-    EVENT_GRAVITY_LAPSE_1_1     = 7,
-    EVENT_GRAVITY_LAPSE_1_2     = 8,
-    EVENT_GRAVITY_LAPSE_2       = 9,
-    EVENT_GRAVITY_LAPSE_3       = 10,
-    EVENT_GRAVITY_LAPSE_4       = 11,
-    EVENT_GRAVITY_LAPSE_5       = 12,
-    EVENT_FINISH_TALK           = 13,
-
     ACTION_TELEPORT_PLAYERS     = 1,
     ACTION_KNOCKUP              = 2,
     ACTION_ALLOW_FLY            = 3,
@@ -172,12 +158,12 @@ struct boss_felblood_kaelthas : public BossAI
         {
             Talk(SAY_AGGRO);
             _hasDoneIntro = true;
-            ScheduleUniqueTimedEvent(35s, [&]{
+            _OOCScheduler.Schedule(35s, [this](TaskContext){
                 me->Yell("I should attack now", LANG_UNIVERSAL);
                 me->SetReactState(REACT_AGGRESSIVE);
                 me->SetImmuneToAll(false);
                 me->SetInCombatWithZone();
-            }, EVENT_INIT_COMBAT);
+            });
         }
         BossAI::MoveInLineOfSight(who);
     }
@@ -197,10 +183,10 @@ struct boss_felblood_kaelthas : public BossAI
                 me->SetReactState(REACT_PASSIVE);
                 LapseAction(ACTION_REMOVE_FLY);
                 scheduler.CancelAll();
-                ScheduleUniqueTimedEvent(6s, [&]{
+                _OOCScheduler.Schedule(6s, [this](TaskContext){
                     me->Yell("I SHOULD KILL MYSELF NOW", LANG_UNIVERSAL);
                     me->KillSelf();
-                }, EVENT_FINISH_TALK);
+                });
                 Talk(SAY_DEATH);
             }
         }
