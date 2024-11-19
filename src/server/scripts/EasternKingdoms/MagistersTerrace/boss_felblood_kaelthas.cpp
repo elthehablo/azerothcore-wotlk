@@ -88,6 +88,7 @@ struct boss_felblood_kaelthas : public BossAI
     void Reset() override
     {
         BossAI::Reset();
+        _OOCScheduler.CancelAll();
         _gravityLapseCounter = 0;
         me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_INTERRUPT_CAST, false);
         me->SetImmuneToAll(false);
@@ -172,6 +173,7 @@ struct boss_felblood_kaelthas : public BossAI
             Talk(SAY_AGGRO);
             _hasDoneIntro = true;
             ScheduleUniqueTimedEvent(35s, [&]{
+                me->Yell("I should attack now", LANG_UNIVERSAL);
                 me->SetReactState(REACT_AGGRESSIVE);
                 me->SetImmuneToAll(false);
                 me->SetInCombatWithZone();
@@ -187,6 +189,7 @@ struct boss_felblood_kaelthas : public BossAI
             damage = me->GetHealth() - 1;
             if (me->isRegeneratingHealth())
             {
+                me->Yell("Into end loop", LANG_UNIVERSAL);
                 me->SetRegeneratingHealth(false);
                 me->SetUnitFlag(UNIT_FLAG_DISABLE_MOVE);
                 me->SetImmuneToAll(true);
@@ -195,6 +198,7 @@ struct boss_felblood_kaelthas : public BossAI
                 LapseAction(ACTION_REMOVE_FLY);
                 scheduler.CancelAll();
                 ScheduleUniqueTimedEvent(6s, [&]{
+                    me->Yell("I SHOULD KILL MYSELF NOW", LANG_UNIVERSAL);
                     me->KillSelf();
                 }, EVENT_FINISH_TALK);
                 Talk(SAY_DEATH);
@@ -222,7 +226,14 @@ struct boss_felblood_kaelthas : public BossAI
             ++_gravityLapseCounter;
         });
     }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _OOCScheduler.Update(diff);
+        BossAI::UpdateAI(diff);
+    }
 private:
+    TaskScheduler _OOCScheduler;
     bool _hasDoneIntro;
     uint8 _gravityLapseCounter;
 };
