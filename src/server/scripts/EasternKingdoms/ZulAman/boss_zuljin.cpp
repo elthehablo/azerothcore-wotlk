@@ -381,6 +381,8 @@ struct npc_zuljin_vortex : public ScriptedAI
         me->SetSpeed(MOVE_RUN, 1.0f);
         me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         DoZoneInCombat();
+        // Start attacking random target
+        AttackStart(SelectTarget(SelectTargetMethod::Random, 0));
     }
 
     void SpellHit(Unit* caster, SpellInfo const* spell) override
