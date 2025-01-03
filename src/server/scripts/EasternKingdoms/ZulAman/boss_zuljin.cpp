@@ -394,8 +394,10 @@ struct npc_zuljin_vortex : public ScriptedAI
     void ChangeToNewPlayer()
     {
         DoResetThreatList();
-        if (Unit* player = SelectTarget(SelectTargetMethod::Random, 0))
-            player->AddThreat(me, 100000.0f);
+        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true))
+        {
+            me->AddThreat(target, 10000000.0f);
+        }
     }
 
     void UpdateAI(uint32 /*diff*/) override
