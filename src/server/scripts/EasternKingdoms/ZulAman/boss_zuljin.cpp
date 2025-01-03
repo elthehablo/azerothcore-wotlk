@@ -382,7 +382,7 @@ struct npc_zuljin_vortex : public ScriptedAI
         me->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         DoZoneInCombat();
         // Start attacking random target
-        AttackStart(SelectTarget(SelectTargetMethod::Random, 0));
+        ChangeToNewPlayer();
     }
 
     void SpellHit(Unit* caster, SpellInfo const* spell) override
@@ -391,13 +391,20 @@ struct npc_zuljin_vortex : public ScriptedAI
             DoCast(caster, SPELL_ZAP_DAMAGE, true);
     }
 
+    void ChangeToNewPlayer()
+    {
+        DoResetThreatList();
+        if (Unit* player = SelectTarget(SelectTargetMethod::Random, 0))
+            player->AddThreat(me, 100000.0f);
+    }
+
     void UpdateAI(uint32 /*diff*/) override
     {
         UpdateVictim();
 
         //if the vortex reach the target, it change his target to another player
         if (me->IsWithinMeleeRange(me->GetVictim()))
-            AttackStart(SelectTarget(SelectTargetMethod::Random, 0));
+            ChangeToNewPlayer();
     }
 };
 
