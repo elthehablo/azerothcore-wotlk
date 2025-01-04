@@ -200,9 +200,12 @@ TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOcurrence(group
     for (auto const& task : container)
     {
         if (task->IsInGroup(group) && task->_end < next)
+        {
             next = task->_end;
+            LOG_ERROR("server", "Current timepoint being checked (relative to now) {}", std::to_string((next-clock_t::now()).count()));
+        }
     }
-
+    LOG_ERROR("server", "Final timepoint (relative to now) {}", std::to_string((next-clock_t::now()).count()));
     return next;
 }
 
