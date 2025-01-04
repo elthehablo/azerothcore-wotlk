@@ -286,9 +286,12 @@ struct boss_hexlord_malacrass : public BossAI
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
             // Delay Drain Power if it's currently within 10s of being cast
+            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER).count()));
             if (scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER) < 10000ms)
+            {
+                LOG_ERROR("server", "Delaying drain power by 10s");
                 scheduler.DelayGroup(GROUP_DRAIN_POWER, 10s);
-
+            }
             scheduler.Schedule(10s, [this](TaskContext)
             {
                 if (Creature* siphonTrigger = me->SummonCreature(NPC_TEMP_TRIGGER, me->GetPosition(), TEMPSUMMON_TIMED_DESPAWN, 30000))
