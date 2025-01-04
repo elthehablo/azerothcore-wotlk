@@ -124,9 +124,9 @@ bool TaskScheduler::IsGroupScheduled(group_t const group)
     return _task_holder.IsGroupQueued(group);
 }
 
-Milliseconds TaskScheduler::GetNextGroupOcurrence(group_t const group) const
+Milliseconds TaskScheduler::GetNextGroupOccurrence(group_t const group) const
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(_task_holder.GetNextGroupOcurrence(group) - clock_t::now());
+    return std::chrono::duration_cast<std::chrono::milliseconds>(_task_holder.GetNextGroupOccurrence(group) - clock_t::now());
 }
 
 void TaskScheduler::TaskQueue::Push(TaskContainer&& task)
@@ -194,21 +194,12 @@ bool TaskScheduler::TaskQueue::IsGroupQueued(group_t const group)
     return false;
 }
 
-TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOcurrence(group_t const group) const
+TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOccurrence(group_t const group) const
 {
     TaskScheduler::timepoint_t next = TaskScheduler::timepoint_t::max();
     for (auto const& task : container)
-    {
-        if (task->IsInGroup(group))
-        {
-            // Debug logging
-            LOG_ERROR("server", "Task end time: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(task->_end.time_since_epoch()).count());
-            if (task->_end < next)
-            {
-                next = task->_end;
-            }
-        }
-    }
+        if (task->IsInGroup(group) && task->_end < next)
+            next = task->_end;
     return next;
 }
 
@@ -254,7 +245,7 @@ TaskScheduler::repeated_t TaskContext::GetRepeatCounter() const
     return _task->_repeated;
 }
 
-TaskScheduler::timepoint_t TaskContext::GetNextOcurrence() const
+TaskScheduler::timepoint_t TaskContext::GetNextOccurrence() const
 {
     return _task->_end;
 }
