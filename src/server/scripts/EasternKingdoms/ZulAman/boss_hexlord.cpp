@@ -290,13 +290,11 @@ struct boss_hexlord_malacrass : public BossAI
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
             // Delay Drain Power if it's currently within 10s of being cast
+            // TODO: see what is wrong with GetNextGroupOccurrence as the timers don't seem correct on resets
             _timeUntilNextDrainPower = scheduler.GetNextGroupOccurrence(GROUP_DRAIN_POWER);
-            LOG_ERROR("server", "Check: drain power group scheduled {}", std::to_string(scheduler.IsGroupScheduled(GROUP_DRAIN_POWER)));
-            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(_timeUntilNextDrainPower.count()));
             if (_timeUntilNextDrainPower > 0ms && _timeUntilNextDrainPower < 10000ms)
             {
                 std::chrono::milliseconds delayTime = 10000ms - _timeUntilNextDrainPower + DELAYMARGIN;
-                LOG_ERROR("server", "Delaying drain power by {} ms", std::to_string(delayTime.count()));
                 scheduler.DelayGroup(GROUP_DRAIN_POWER, delayTime);
             }
             scheduler.Schedule(10s, [this](TaskContext)
