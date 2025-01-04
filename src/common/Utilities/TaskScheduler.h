@@ -147,6 +147,9 @@ class TaskScheduler
 
         /// Check if the group exists and is currently scheduled.
         bool IsGroupQueued(group_t const group);
+    
+        // Returns size of current task queue
+        TaskScheduler::timepoint_t GetNextPositiveGroupOcurrence(group_t const group) const;
 
         // Returns the next group occurrence.
         TaskScheduler::timepoint_t GetNextGroupOcurrence(group_t const group) const;
@@ -379,6 +382,8 @@ public:
     // Returns the next group occurrence.
     Milliseconds GetNextGroupOcurrence(group_t const group) const;
 
+    // Returns the next group occurence not lying in the past
+    Milliseconds GetNextPositiveGroupOcurrence(group_t const group) const;
 private:
     /// Insert a new task to the enqueued tasks.
     TaskScheduler& InsertTask(TaskContainer task);
