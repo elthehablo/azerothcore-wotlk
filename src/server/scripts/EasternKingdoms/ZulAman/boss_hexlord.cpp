@@ -289,7 +289,7 @@ struct boss_hexlord_malacrass : public BossAI
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
             // Delay Drain Power if it's currently within 10s of being cast
-            _timeUntilNextDrainPower = scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER);
+            _timeUntilNextDrainPower = scheduler.GetNextGroupOccurrence(GROUP_DRAIN_POWER);
             LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(_timeUntilNextDrainPower.count()));
             if (_timeUntilNextDrainPower > 0ms && _timeUntilNextDrainPower < 10000ms)
             {
