@@ -149,6 +149,8 @@ enum AbilityTarget
     ABILITY_TARGET_SPECIAL = 5
 };
 
+constexpr std::chrono::milliseconds MARGIN(1000);
+
 struct PlayerAbilityStruct
 {
     uint32 spell;
@@ -286,11 +288,13 @@ struct boss_hexlord_malacrass : public BossAI
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
             // Delay Drain Power if it's currently within 10s of being cast
-            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER).count()));
-            if (scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER) < 10000ms)
+            std::chrono::milliseconds timeUntilNextDrainPower = scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER);
+            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(timeUntilNextDrainPower.count()));
+            if (timeUntilNextDrainPower < 10000ms)
             {
-                LOG_ERROR("server", "Delaying drain power by 10s");
-                scheduler.DelayGroup(GROUP_DRAIN_POWER, 10s);
+                std::chrono::milliseconds delayTime = 10000ms - timeUntilNextDrainPower + MARGIN;
+                LOG_ERROR("server", "Delaying drain power by {} ms", std::to_string(delayTime.count()));
+                scheduler.DelayGroup(GROUP_DRAIN_POWER, delayTime);
             }
             scheduler.Schedule(10s, [this](TaskContext)
             {
