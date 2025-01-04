@@ -129,11 +129,6 @@ Milliseconds TaskScheduler::GetNextGroupOcurrence(group_t const group) const
     return std::chrono::duration_cast<std::chrono::milliseconds>(_task_holder.GetNextGroupOcurrence(group) - clock_t::now());
 }
 
-Milliseconds TaskScheduler::GetNextPositiveGroupOcurrence(group_t const group) const
-{
-    return std::chrono::duration_cast<std::chrono::milliseconds>(_task_holder.GetNextPositiveGroupOcurrence(group) - clock_t::now());
-}
-
 void TaskScheduler::TaskQueue::Push(TaskContainer&& task)
 {
     container.insert(task);
@@ -202,25 +197,19 @@ bool TaskScheduler::TaskQueue::IsGroupQueued(group_t const group)
 TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOcurrence(group_t const group) const
 {
     TaskScheduler::timepoint_t next = TaskScheduler::timepoint_t::max();
+    uint8 counter = 0;
+    
+    LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
     for (auto const& task : container)
     {
+        counter++;
+        LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
         if (task->IsInGroup(group) && task->_end < next)
+        {
             next = task->_end;
+        }
     }
-
-    return next;
-}
-
-TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextPositiveGroupOcurrence(group_t const group) const
-{
-    TaskScheduler::timepoint_t next = TaskScheduler::timepoint_t::max();
-    for (auto const& task : container)
-    {
-        if (task->IsInGroup(group) && task->_end < next)
-            if (task->_end > clock_t::now())
-                next = task->_end;
-    }
-
+    LOG_ERROR("server", "Final timepoint (relative to now) {}", std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
     return next;
 }
 
