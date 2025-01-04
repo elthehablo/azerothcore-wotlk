@@ -290,7 +290,7 @@ struct boss_hexlord_malacrass : public BossAI
             // Delay Drain Power if it's currently within 10s of being cast
             std::chrono::milliseconds timeUntilNextDrainPower = scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER);
             LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(timeUntilNextDrainPower.count()));
-            if (timeUntilNextDrainPower < 10000ms)
+            if (timeUntilNextDrainPower > 0ms && timeUntilNextDrainPower < 10000ms)
             {
                 std::chrono::milliseconds delayTime = 10000ms - timeUntilNextDrainPower + MARGIN;
                 LOG_ERROR("server", "Delaying drain power by {} ms", std::to_string(delayTime.count()));
