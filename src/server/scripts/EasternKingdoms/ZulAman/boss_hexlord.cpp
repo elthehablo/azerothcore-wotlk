@@ -135,7 +135,8 @@ enum Misc
     MAX_ADD_COUNT               = 4,
     ADDITIONAL_CLASS_SPRIEST    = 11,
     AURA_SHADOW_FORM            = 15473,
-    GROUP_CLASS_ABILITY         = 1
+    GROUP_CLASS_ABILITY         = 1,
+    GROUP_DRAIN_POWER           = 2
 };
 
 enum AbilityTarget
@@ -244,10 +245,12 @@ struct boss_hexlord_malacrass : public BossAI
         _classAbilityTimer = 10000ms;
         SpawnAdds();
         ScheduleHealthCheckEvent(80, [&] {
-            ScheduleTimedEvent(1s, [&] {
+            scheduler.Schedule(1s, GROUP_DRAIN_POWER, [this](TaskContext context)
+            {
                 DoCastSelf(SPELL_DRAIN_POWER, true);
                 Talk(SAY_DRAIN_POWER);
-            }, 30s);
+                context.Repeat(30s);
+            });
         });
     }
 
@@ -282,6 +285,10 @@ struct boss_hexlord_malacrass : public BossAI
         ScheduleTimedEvent(30s, [&]{
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
+            // Delay Drain Power if it's currently within 10s of being cast
+            if (scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER) < 10000ms)
+                scheduler.DelayGroup(GROUP_DRAIN_POWER, 10s);
+
             scheduler.Schedule(10s, [this](TaskContext)
             {
                 if (Creature* siphonTrigger = me->SummonCreature(NPC_TEMP_TRIGGER, me->GetPosition(), TEMPSUMMON_TIMED_DESPAWN, 30000))
