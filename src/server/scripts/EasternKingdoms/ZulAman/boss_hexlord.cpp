@@ -245,6 +245,7 @@ struct boss_hexlord_malacrass : public BossAI
         BossAI::Reset();
         _currentClass = CLASS_NONE;
         _classAbilityTimer = 10000ms;
+        _timeUntilNextDrainPower = 0ms;
         SpawnAdds();
         ScheduleHealthCheckEvent(80, [&] {
             scheduler.Schedule(1s, GROUP_DRAIN_POWER, [this](TaskContext context)
@@ -288,11 +289,11 @@ struct boss_hexlord_malacrass : public BossAI
             scheduler.CancelGroup(GROUP_CLASS_ABILITY);
             DoCastSelf(SPELL_SPIRIT_BOLTS);
             // Delay Drain Power if it's currently within 10s of being cast
-            std::chrono::milliseconds timeUntilNextDrainPower = scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER);
-            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(timeUntilNextDrainPower.count()));
-            if (timeUntilNextDrainPower > 0ms && timeUntilNextDrainPower < 10000ms)
+            _timeUntilNextDrainPower = scheduler.GetNextGroupOcurrence(GROUP_DRAIN_POWER);
+            LOG_ERROR("server", "Current time till next drain power: {}ms", std::to_string(_timeUntilNextDrainPower.count()));
+            if (_timeUntilNextDrainPower > 0ms && _timeUntilNextDrainPower < 10000ms)
             {
-                std::chrono::milliseconds delayTime = 10000ms - timeUntilNextDrainPower + DELAYMARGIN;
+                std::chrono::milliseconds delayTime = 10000ms - _timeUntilNextDrainPower + DELAYMARGIN;
                 LOG_ERROR("server", "Delaying drain power by {} ms", std::to_string(delayTime.count()));
                 scheduler.DelayGroup(GROUP_DRAIN_POWER, delayTime);
             }
@@ -368,6 +369,7 @@ struct boss_hexlord_malacrass : public BossAI
 private:
     uint8 _currentClass;
     std::chrono::milliseconds _classAbilityTimer;
+    std::chrono::milliseconds _timeUntilNextDrainPower;
     std::vector<uint8> _creatureIndex;
 };
 
