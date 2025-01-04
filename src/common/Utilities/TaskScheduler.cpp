@@ -199,10 +199,16 @@ TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOcurrence(group
     TaskScheduler::timepoint_t next = TaskScheduler::timepoint_t::max();
     for (auto const& task : container)
     {
-        if (task->IsInGroup(group) && task->_end < next)
-            next = task->_end;
+        if (task->IsInGroup(group))
+        {
+            // Debug logging
+            LOG_ERROR("server", "Task end time: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(task->_end.time_since_epoch()).count());
+            if (task->_end < next)
+            {
+                next = task->_end;
+            }
+        }
     }
-
     return next;
 }
 
