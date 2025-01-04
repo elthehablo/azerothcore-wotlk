@@ -198,17 +198,18 @@ TaskScheduler::timepoint_t TaskScheduler::TaskQueue::GetNextGroupOcurrence(group
 {
     TaskScheduler::timepoint_t next = TaskScheduler::timepoint_t::max();
     uint8 counter = 0;
-    LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string((next-clock_t::now()).count()));
+    
+    LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
     for (auto const& task : container)
     {
         counter++;
-        LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string((next-clock_t::now()).count()));
+        LOG_ERROR("server", "Current {} timepoint being checked (relative to now) {}", std::to_string(counter), std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
         if (task->IsInGroup(group) && task->_end < next)
         {
             next = task->_end;
         }
     }
-    LOG_ERROR("server", "Final timepoint (relative to now) {}", std::to_string((next-clock_t::now()).count()));
+    LOG_ERROR("server", "Final timepoint (relative to now) {}", std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(next-clock_t::now()).count()));
     return next;
 }
 
