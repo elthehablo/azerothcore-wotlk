@@ -55,6 +55,7 @@ enum Misc
     NPC_CRYSTAL_CHANNEL_TARGET              = 26712,
     NPC_CRYSTAL_HANDLER                     = 26627,
     NPC_SUMMON_CRYSTAL_HANDLER_TARGET       = 27583,
+    NPC_FETID_TROLL_CORPSE                  = 27598,
 
     EVENT_SUMMON_FETID_TROLL                = 1,
     EVENT_SUMMON_SHADOWCASTER               = 2,
@@ -181,6 +182,8 @@ public:
                 summon->SetReactState(REACT_DEFENSIVE);
             else if (summon->GetEntry() != NPC_CRYSTAL_CHANNEL_TARGET)
                 summon->SetInCombatWithZone();
+            else if (summon->GetEntry() == NPC_FETID_TROLL_CORPSE && _stage != 0)
+                summon->SetPhaseMask(0, true);
         }
 
         void UpdateAI(uint32 diff) override
