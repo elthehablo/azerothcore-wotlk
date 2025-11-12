@@ -182,8 +182,11 @@ public:
                 summon->SetReactState(REACT_DEFENSIVE);
             else if (summon->GetEntry() != NPC_CRYSTAL_CHANNEL_TARGET)
                 summon->SetInCombatWithZone();
-            else if (summon->GetEntry() == NPC_FETID_TROLL_CORPSE && _stage != 0)
-                summon->SetPhaseMask(0, true);
+            else if (summon->GetEntry() == NPC_FETID_TROLL_CORPSE)
+            {
+                uint32 phaseToUse = !_stage;
+                summon->SetPhaseMask(phaseToUse, true);
+            }
         }
 
         void UpdateAI(uint32 diff) override
