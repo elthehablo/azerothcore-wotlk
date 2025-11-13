@@ -78,6 +78,8 @@ std::unordered_map<uint32, std::tuple <uint32, Position>> const npcSummon =
     { ROOM_STAIRS,  { NPC_CRYSTAL_CHANNEL_TARGET,           { -378.40f, -813.13f, 59.74f, 0.0f } } },
 };
 
+const Position bottomStairs = { -373.56f, -770.86f, 28.59f, 0.0f };
+
 class boss_novos : public CreatureScript
 {
 public:
@@ -184,8 +186,10 @@ public:
                 summon->SetInCombatWithZone();
             else if (summon->GetEntry() == NPC_FETID_TROLL_CORPSE)
             {
-                uint32 phaseToUse = !_stage;
-                summon->SetPhaseMask(phaseToUse, true);
+                if (_stage == 0)
+                    summon->GetMotionMaster()->MovePoint(0, bottomStairs);
+                else
+                    summon->SetInCombatWithZone();
             }
         }
 
