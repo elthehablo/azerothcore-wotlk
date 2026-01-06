@@ -464,6 +464,11 @@ public:
                             go->SetGoState(GO_STATE_ACTIVE);
 
                         gateOpened = true;
+                        summons.DoForAllSummons([&](WorldObject* summon)
+                        {
+                            if (Creature* gothikMinion = summon->ToCreature())
+                                gothikMinion->SetInCombatWithZone();
+                        });
                         Talk(EMOTE_GATE_OPENED);
                     }
                     break;
