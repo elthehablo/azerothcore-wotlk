@@ -93,25 +93,26 @@ enum Events
     EVENT_TELEPORT                  = 4,
     EVENT_CHECK_HEALTH              = 5,
     EVENT_CHECK_PLAYERS             = 6,
+    EVENT_AGGRO_DEAD_SIDE           = 7,
     // Living trainee
-    EVENT_DEATH_PLAGUE              = 7,
+    EVENT_DEATH_PLAGUE              = 8,
     // Dead trainee
-    EVENT_ARCANE_EXPLOSION          = 8,
+    EVENT_ARCANE_EXPLOSION          = 9,
     // Living knight
-    EVENT_SHADOW_MARK               = 9,
+    EVENT_SHADOW_MARK               = 10,
     // Dead knight
-    EVENT_WHIRLWIND                 = 10,
+    EVENT_WHIRLWIND                 = 11,
     // Living rider
-    EVENT_SHADOW_BOLT_VOLLEY        = 11,
+    EVENT_SHADOW_BOLT_VOLLEY        = 12,
     // Dead rider
-    EVENT_DRAIN_LIFE                = 12,
-    EVENT_UNHOLY_FRENZY             = 13,
+    EVENT_DRAIN_LIFE                = 13,
+    EVENT_UNHOLY_FRENZY             = 14,
     // HORSE
-    EVENT_STOMP                     = 14,
+    EVENT_STOMP                     = 15,
     // Intro
-    EVENT_INTRO_2                   = 15,
-    EVENT_INTRO_3                   = 16,
-    EVENT_INTRO_4                   = 17
+    EVENT_INTRO_2                   = 16,
+    EVENT_INTRO_3                   = 17,
+    EVENT_INTRO_4                   = 18
 };
 
 const uint32 gothikWaves[24][2] =
@@ -464,11 +465,14 @@ public:
                             go->SetGoState(GO_STATE_ACTIVE);
 
                         gateOpened = true;
-                        summons.DoForAllSummons([&](WorldObject* summon)
-                        {
-                            if (Creature* gothikMinion = summon->ToCreature())
-                                gothikMinion->SetInCombatWithZone();
-                        });
+                        // small buffer to account for LOS issues
+                        ScheduleUniqueTimedEvent(1s, [&] {
+                            summons.DoForAllSummons([&](WorldObject* summon)
+                            {
+                                if (Creature* gothikMinion = summon->ToCreature())
+                                    gothikMinion->SetInCombatWithZone();
+                            });
+                        }, EVENT_AGGRO_DEAD_SIDE);
                         Talk(EMOTE_GATE_OPENED);
                     }
                     break;
