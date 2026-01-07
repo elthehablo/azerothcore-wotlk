@@ -467,7 +467,12 @@ public:
                         summons.DoForAllSummons([&](WorldObject* summon)
                         {
                             if (Creature* gothikMinion = summon->ToCreature())
+                            {
                                 gothikMinion->SetInCombatWithZone();
+                                ObjectGuid gothikCreatureGuid = gothikMinion->GetGUID();
+                                gothikMinion->GetMotionMaster()->MoveCharge(PosSummonLiving[2].GetPositionX(), PosSummonLiving[2].GetPositionY(), PosSummonLiving[2].GetPositionZ(), gothikMinion->GetSpeed(MOVE_RUN), EVENT_CHECK_PLAYERS);
+                                LOG_ERROR("server", "I am selected {}", gothikCreatureGuid.GetRawValue());
+                            }
                         });
                         Talk(EMOTE_GATE_OPENED);
                     }
