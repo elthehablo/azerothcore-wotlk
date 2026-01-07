@@ -468,11 +468,13 @@ public:
                             if (Creature* gothikMinion = summon->ToCreature())
                                 if (gothikMinion->IsAlive())
                                 {
-                                    gothikMinion->SetReactState(REACT_AGGRESSIVE);
-                                    gothikMinion->SetInCombatWithZone();
+                                    if (Unit* target = SelectTarget(SelectTargetMethod::MinDistance, 0, 200.0f))
+                                    {
+                                        gothikMinion->AI()->AttackStart(target);
+                                        gothikMinion->SetReactState(REACT_AGGRESSIVE);
+                                        gothikMinion->SetInCombatWithZone();
+                                    }
                                 }
-
-                                
                         });
                         Talk(EMOTE_GATE_OPENED);
                     }
