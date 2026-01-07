@@ -467,7 +467,11 @@ public:
                         {
                             if (Creature* gothikMinion = summon->ToCreature())
                                 if (gothikMinion->IsAlive())
+                                {
+                                    gothikMinion->SetReactState(REACT_AGGRESSIVE);
                                     gothikMinion->SetInCombatWithZone();
+                                }
+
                                 
                         });
                         Talk(EMOTE_GATE_OPENED);
